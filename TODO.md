@@ -1,0 +1,1 @@
+- Eliminar TODO.md y NOTAS.md cuando terminemos.
