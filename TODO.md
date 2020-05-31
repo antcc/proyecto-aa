@@ -15,6 +15,6 @@ vs.plot_feature_importance(
 - Normalización vs estandarización?
 - Comparar el mejor modelo de distintas clases de modelos. Gráficas.
 - Escalar gráficas para que se vea algo. Eliminar outliers?
-- Arreglar gráficas en general. Puntitos pequeños.
+- Arreglar gráficas en general (normalizar variables). Puntitos pequeños.
 - Medir bien tiempos en varias etapas.
 - Cambiar Readme.md si al final hacemos clasificación
