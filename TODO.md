@@ -16,3 +16,4 @@ vs.plot_feature_importance(
 - Comparar el mejor modelo de distintas clases de modelos. Gráficas.
 - Escalar gráficas para que se vea algo. Eliminar outliers?
 - Arreglar gráficas en general. Puntitos pequeños.
+- Medir bien tiempos en varias etapas.
