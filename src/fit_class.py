@@ -237,6 +237,7 @@ def fit_linear(X_train, X_test, y_train, y_test, selection_strategy = Selection.
             vs.scatter_pca_classes(
                 X_test_pre, y_test,
                 [best_clf.best_estimator_['clf'].coef_],
+                ["Mejor clasificador lineal"],
                 SAVE_FIGURES, IMG_PATH)
 
         if SHOW > 1:
