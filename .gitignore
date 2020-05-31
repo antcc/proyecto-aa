@@ -1,0 +1,6 @@
+venv
+resources
+datos
+__pycache__
+NOTAS.md
+*.log
