@@ -17,3 +17,4 @@ vs.plot_feature_importance(
 - Escalar gráficas para que se vea algo. Eliminar outliers?
 - Arreglar gráficas en general. Puntitos pequeños.
 - Medir bien tiempos en varias etapas.
+- Cambiar Readme.md si al final hacemos clasificación
