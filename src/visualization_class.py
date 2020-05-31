@@ -2,9 +2,9 @@
 
 """
 Aprendizaje Automático. Curso 2019/20.
-Proyecto final: ajuste del mejor modelo de regresión.
+Proyecto final: ajuste del mejor modelo de clasificación.
 Colección de funciones para visualización de gráficas para un
-problema de regresión.
+problema de clasificación.
 
 Todas las funciones tienen parámetros 'save_figures' y 'img_path'
 que permiten guardar las imágenes generadas en disco en vez de
@@ -23,7 +23,8 @@ from matplotlib import pyplot as plt
 from matplotlib import cm
 
 from sklearn.model_selection import learning_curve
-from sklearn.linear_model import LinearRegression
+from sklearn.metrics import plot_confusion_matrix
+from sklearn.manifold import TSNE
 
 #
 # FUNCIONES DE VISUALIZACIÓN
@@ -282,125 +283,116 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
         plt.show(block = False)
     wait(save_figures)
 
-def plot_features(features, names, X, y, save_figures = False, img_path = ""):
-    """Muestra algunos predictores frente a la variable dependiente. Además
-       ajusta una recta de regresión.
-         - features: vector numérico de características.
-         - names: nombres de las características.
-         - X: matriz de características.
-         - y: vector con la variable a predecir."""
+def plot_tsne(X, y, save_figures = False, img_path = ""):
+    """Aplica el algoritmo TSNE para proyectar el conjunto X en 2 dimensiones,
+       junto a las etiquetas correspondientes."""
 
-    fig, axs = plt.subplots(1, len(features), figsize = (12, 6))
-    fig.suptitle("Visualización de algunas características", y = 0.95)
+    scatter_plot(
+        TSNE().fit_transform(X), y,
+        axis = ["x", "y"],
+        title = "Proyección 2-dimensional con TSNE",
+        figname = "tsne",
+        save_figures = save_figures,
+        img_path = img_path)
 
-    reg = LinearRegression()
+def scatter_pca(X, y_pred, save_figures = False, img_path = ""):
+    """Proyección de las dos primeras componentes principales
+       con sus etiquetas predichas.
+         - X: matriz de características bidimensionales.
+         - y_pred: etiquetas predichas."""
 
-    for (i, f), name in zip(enumerate(features), names):
-        # Mostramos un scatter
-        x = X[:, f].reshape(X.shape[0], 1)
-        axs[i].scatter(x, y, facecolors = 'none', edgecolors = 'tab:blue', marker = '.')
-        axs[i].set_xlabel("{} (nº {})".format(name, f))
-        axs[i].set_ylabel("ViolentCrimesPerPop")
+    scatter_plot(
+        X[:, [0, 1]],
+        y_pred,
+        axis = ["Primera componente principal",
+                "Segunda componente principal"],
+        title = "Proyección de las dos primeras componentes principales",
+        figname = "scatter",
+        save_figures = save_figures,
+        img_path = img_path)
 
-        # Ajustamos una recta y la mostramos
-        reg.fit(x, y)
-        m = reg.coef_[0]
-        b = reg.intercept_
-        xx = np.array([x.min() - 0.1, x.max() + 0.1])
-        axs[i].plot(xx, m * xx + b, color = 'k', ls = "--", lw = 2)
-        axs[i].text(-0.1, 0.99, "r = {:.3f}".format(np.corrcoef(x.T, y)[0, 1]),
-            fontsize = 11, bbox = dict(facecolor = 'k', alpha = 0.05))
+def scatter_pca_classes(X, y, ws, labels, save_figures = False, img_path = ""):
+    """Proyección de las dos primeras componentes principales
+       con sus etiquetas reales. Se muestran también una lista de clasificadores.
+         - X: matriz de características bidimensionales.
+         - y: etiquetas reales.
+         - w: coeficientes de los clasificadores.
+         - labels: nombres de los clasificadores."""
+
+    scatter_plot(
+        X[:, [0, 1]], y,
+        axis = ["Primera componente principal",
+                "Segunda componente principal"],
+        ws = ws,
+        labels = labels,
+        title = "Proyección de las dos primeras componentes principales con clasificadores",
+        figname = "scatter_2",
+        cmap = cm.tab10,
+        save_figures = save_figures,
+        img_path = img_path)
+
+def confusion_matrix(clf, X, y, save_figures = False, img_path = ""):
+    """Muestra la matriz de confusión de un clasificador en un conjunto de datos.
+         - clf: clasificador.
+         - X, y: conjunto de datos y etiquetas."""
+
+    fig, ax = plt.subplots(1, 1, figsize = (8, 6))
+    disp = plot_confusion_matrix(clf, X, y, cmap = cm.Blues, values_format = 'd', ax = ax)
+    disp.ax_.set_title("Matriz de confusión")
+    disp.ax_.set_xlabel("Etiqueta predicha")
+    disp.ax_.set_ylabel("Etiqueta real")
 
     if save_figures:
-        plt.savefig(img_path + "features_y.png")
+        plt.savefig(img_path + "confusion.png")
     else:
         plt.show(block = False)
     wait(save_figures)
 
-def plot_hist_dependent(y, save_figures = False, img_path = ""):
-    """Muestra un histograma de la distribución de la variable dependiente."""
-
-    plt.figure(figsize = (8, 6))
-    plt.xlabel("ViolentCrimesPerPop")
-    plt.ylabel("Frecuencia")
-    plt.title("Histograma de ViolentCrimesPerPop")
-    plt.hist(y, edgecolor = 'k', bins = 15)
-
-    if save_figures:
-        plt.savefig(img_path + "hist_y.png")
-    else:
-        plt.show(block = False)
-    wait(save_figures)
-
-def plot_scatter_pca_reg(x, y, m, b, save_figures = False, img_path = ""):
-    """Proyecta la primera componente principal frente a la variable dependiente,
-       junto al ajuste obtenido.
-         - x: primera componente principal.
-         - y: vector con la variable a predecir
-         - m: pendiente de la recta de ajuste.
-         - b: punto de corte con el eje Y de la recta de ajuste."""
-
-    plt.figure(figsize = (8, 6))
-    plt.xlabel("Primera componente principal")
-    plt.ylabel("ViolentCrimesPerPop")
-    plt.title("Proyección de la primera componente principal y recta de regresión")
-
-    # Mostramos un scatter
-    plt.scatter(x, y, facecolors = 'none', edgecolors = 'tab:blue', marker = '.')
-
-    # Mostramos la recta de ajuste
-    xx = np.array([x.min() - 0.1, x.max() + 0.1])
-    plt.plot(xx, m * xx + b, color = 'k', ls = "--", lw = 2)
-
-    if save_figures:
-        plt.savefig(img_path + "scatter_reg.png")
-    else:
-        plt.show(block = False)
-    wait(save_figures)
-
-def plot_residues_error(y_true, y_pred, save_figures = False, img_path = ""):
-    """Muestra un gráfico de los residuos tras una regresión lineal,
-       y otro gráfico del error de predicción."""
+def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, img_path = ""):
+    """Muestra la distribución de clases en entrenamiento y test."""
 
     fig, axs = plt.subplots(1, 2, figsize = (12, 6))
-    fig.suptitle("Algunos gráficos sobre el error en el ajuste", y = 0.95)
+    plt.suptitle("Distribución de clases", y = 0.96)
 
-    reg = LinearRegression()
+    # Diagrama de barras en entrenamiento
+    unique, counts = np.unique(y_train.astype(int), return_counts = True)
+    axs[0].bar(
+        unique,
+        counts,
+        color = cm.Set3.colors)
+    axs[0].title.set_text("Entrenamiento")
+    axs[0].set_xlabel("Clases")
+    axs[0].set_ylabel("Número de ejemplos")
+    axs[0].set_xticks([-1, 1])
 
-    # Gráfico de residuos
-    x = y_pred.reshape(-1, 1)
-    y = y_true - y_pred
-    axs[0].scatter(x, y, facecolors = 'none', edgecolors = 'tab:blue', marker = '.')
-    axs[0].set_xlabel("ViolentCrimesPerPop")
-    axs[0].set_ylabel("Residuos")
-    axs[0].set_title("Diagrama de residuos")
-
-    # Ajustamos una recta y la mostramos
-    reg.fit(x, y)
-    m = reg.coef_[0]
-    b = reg.intercept_
-    xx = np.array([x.min() - 0.1, x.max() + 0.1])
-    axs[0].plot(xx, m * xx + b, color = 'k', ls = "--", lw = 2)
-
-    # Gráfico de error de predicción
-    x = y_true.reshape(-1, 1)
-    y = y_pred
-    axs[1].scatter(x, y, facecolors = 'none', edgecolors = 'tab:blue', marker = '.')
-    axs[1].set_xlabel("y")
-    axs[1].set_ylabel("y_pred")
-    axs[1].set_title("Error de predicción")
-
-    # Ajustamos una recta y la mostramos junto a la recta y = x
-    reg.fit(x, y)
-    m = reg.coef_[0]
-    b = reg.intercept_
-    xx = np.array([x.min() - 0.1, x.max() + 0.1])
-    axs[1].plot(xx, m * xx + b, color = 'k', ls = "--", lw = 2, label = "Mejor ajuste")
-    axs[1].plot(xx, xx, color = 'gray', ls = "--", lw = 2, label = "Identidad")
-    axs[1].legend()
+    # Diagrama de barras en test
+    unique, counts = np.unique(y_test.astype(int), return_counts = True)
+    axs[1].bar(
+        unique,
+        counts,
+        color = cm.Set3.colors)
+    axs[1].title.set_text("Test")
+    axs[1].set_xlabel("Clases")
+    axs[1].set_ylabel("Número de ejemplos")
+    axs[1].set_xticks([-1, 1])
 
     if save_figures:
-        plt.savefig(img_path + "residues_error.png")
+        plt.savefig(img_path + "class_distr.png")
     else:
         plt.show(block = False)
     wait(save_figures)
+
+def plot_features(features, names, X, y, save_figures = False, img_path = ""):
+    """Muestra la proyección de dos características con sus etiquetas correspondientes.
+         - features: vector de índices de dos características.
+         - names: nombres de las características.
+         - X: matriz de todas características.
+         - y: vector de etiquetas."""
+
+    scatter_plot(
+        X[:, features], y,
+        axis = names,
+        title = "Proyección de las dos características más relevantes",
+        figname = "scatter_relevance",
+        save_figures = save_figures,
+        img_path = img_path)

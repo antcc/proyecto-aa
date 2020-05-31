@@ -19,10 +19,11 @@ Para que los experimentos sean reproducibles se fija una semilla aleatoria al in
 
 # Base de datos y descripción del problema
 
-Citar a [@fernandes2015] y poner [link](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity) a la BBDD. Mencionar un resumen muy general de los diferentes atributos que se recogen (tipo real, entero, etc).
+Citar a [@fernandes2015] y poner [link](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity) a la BBDD. Mencionar un resumen muy general de los diferentes atributos que se recogen (tipo real, entero, etc). Mostrar tabla-resumen que viene en el artículo.
 
 ## Resumen estadístico de los datos (?)
 
+Estudiar la distribución de clases si hacemos clasificación binaria (número exacto, porcentaje).
 
 # Selección de la clase de funciones
 
@@ -41,22 +42,6 @@ Citar a [@fernandes2015] y poner [link](https://archive.ics.uci.edu/ml/datasets/
 ## Orden de las transformaciones
 
 # Métricas de error
-
-Fijamos a continuación las métricas que usaremos para la selección y evaluación de los modelos.
-
-En este caso la gama de opciones es más amplia, por lo que decidimos realizar una elección doble. Emplearemos como métrica principal en los ajustes el *error cuadrático medio*, y como métrica secundaria para apoyar el análisis el *coeficiente de determinación* $R^2$, ambas de uso muy extendido.
-
-El error cuadrático medio (MSE) cuantifica la diferencia entre las predicciones y las etiquetas reales. Se trata de un error que penaliza con mayor severidad los *outliers* en comparación, por ejemplo, al error absoluto medio. Puede expresarse como
-$$
-\operatorname{MSE}(h) = \frac{1}{N} \sum_{n=1}^N (y_n - h(x_n))^2.
-$$
-
-Además, aunque la métrica de error sea el MSE, para mostrar y discutir los resultados emplearemos siempre su raíz cuadrada (abreviada RMSE), simplemente porque de esa forma el error estará en unidades de la variable a predecir y facilitará su interpretación. Aunque esta es una de las métricas de error más usadas, tiene como desventaja que no está acotada superiormente y no tenemos un valor de referencia; solo podemos usarla en general para comparar los ajustes dentro de un mismo conjunto de datos, y no de manera absoluta.
-
-Para tener una medida absoluta de error consideramos también el coeficiente de determinación $R^2$. Este coeficiente indica la bondad del ajuste, tomando su máximo valor en $1$ (ajuste perfecto), y pudiendo tomar también valores negativos (a pesar de su nombre). Su definición es la siguiente:
-$$
-R^2(h) = 1 - \frac{\sum_{n=1}^N (y_n - h(x_n))^2}{\sum_{n=1}^N (y_n - \overbar{y})^2}, \quad \text{con } \overbar{y} = \frac{1}{N}\sum_{i=1}^N y_n.
-$$
 
 # Regularización
 

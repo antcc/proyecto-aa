@@ -2,7 +2,7 @@
 
 URL: https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity#
 This dataset summarizes a heterogeneous set of features about articles published by Mashable in a period of two years.
-39797 instances with 60 attributes (Integer, Real). 2 de ellos no predictivos (los dos primeros, URL y el timestamp)
+39644 instances with 60 attributes (Integer, Real). 2 de ellos no predictivos (los dos primeros, URL y el timestamp). Es decir, 58 atributos.
 Target: no. of shares in social networks (Integer)
 NO HAY MISSING VALUES (YAY!)
 
@@ -96,7 +96,7 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 1. Definición del problema a resolver y enfoque elegido.
 2. Argumentos a favor de la elección de los modelos.
 3. Codificación de los datos de entrada para hacerlos útiles a los algoritmos.
-4. Valoración del interés de la variables para el problema y selección de un subconjunto (en su caso).
+4. Valoración del interés de las variables para el problema y selección de un subconjunto (en su caso).
 5. Normalización de las variables (en su caso)
 6. Justificación de la función de pérdida usada.
 7. Selección de las técnica (parámetrica) y valoración de la idoneidad de la misma frente a otras alternativas
@@ -128,23 +128,23 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 
 - Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos?
 - Convertir en un problema de clasificación binaria? PREGUNTAR NICOLÁS; hay referencias del accuracy conseguido.
+- ¿Qué hacer si las clases no son 100% balanceadas?
+- Se pueden usar distintos tipos de preprocesado para distintas clases de modelos?
+- Qué pasa con el fit_intercept?
 
 # Enfoque
 
 Podemos convertirlo en un problema de clasificación binaria popular vs- unpopular. Hacer las dos cosas?
 
-- Leer artículo de los autores.
+- Leer artículo de los autores.Repetir experimentos que hacen.
+- Mirar los parámetros por defecto que ponen.
+- Mirar las métricas que usan. usar varias métricas.
 
 # Formato de la documentación
 
 - Rellenar el `README.md`
 - Rellenar anexo con funcionamiento del código? Listings?
 - Paquetes de latex en `header.md`
-- Números con dólares siempre.
-
-# Formato del código
-
-- Hacer `pylint fit.py` y `pylint visualization.py`.
-- Indentación de 4 espacios.
+- Números con dólares.
 
 # Enlaces de interés
