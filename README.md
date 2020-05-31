@@ -9,7 +9,7 @@ Realizado junto a [@MiguelLentisco](https://github.com/MiguelLentisco). Curso 20
 - Python 3.7.7
 - Scikit-Learn 0.23.1+
 - NumPy 1.18.0+
-- PAndas 1.0.4+
+- Pandas 1.0.4+
 - Matplotlib 3.2.1+
 
 ### Documentación
