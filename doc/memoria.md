@@ -1,5 +1,3 @@
-Ejemplo de cita [@coco] en mitad del texto. Ejemplo de referencia a una sección [Métricas de error]. Mejor números con dólares $123456789$ que sin dólares 123456789.
-
 # Introducción
 
 En esta práctica perseguimos ajustar el mejor modelo lineal en dos conjuntos de datos dados, para resolver un problema de clasificación y otro de regresión. En ambos casos seguiremos una estrategia común que nos llevará finalmente a elegir un modelo y estimar su error.
@@ -20,6 +18,11 @@ La ejecución de los dos programas principales está preparada para que se muest
 Para que los experimentos sean reproducibles se fija una semilla aleatoria al incio del programa. Todos los resultados y gráficas que se muestran a continuación se han obtenido con el valor $2020$ para la semilla, y pueden reproducirse si se ejecuta el programa tal y como se proporciona.
 
 # Base de datos y descripción del problema
+
+Citar a [@fernandes2015] y poner [link](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity) a la BBDD. Mencionar un resumen muy general de los diferentes atributos que se recogen (tipo real, entero, etc).
+
+## Resumen estadístico de los datos (?)
+
 
 # Selección de la clase de funciones
 

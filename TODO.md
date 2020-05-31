@@ -1,1 +1,2 @@
 - Eliminar TODO.md y NOTAS.md cuando terminemos.
+- Leer artículo de los autores.
