@@ -75,6 +75,7 @@ PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_CV_RESULTS = True
+SUBSET_DATA = False
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
 SHOW = Show.NONE
@@ -242,8 +243,8 @@ def fit(X_train, X_test, y_train, y_test, clfs, model_class, selection_strategy)
     # Mostramos los resultados del mejor clasificador encontrado
     model = best_clf.best_params_
     print("--> Mejor clasificador encontrado <--")
-    print("Modelo: {}".format(model['clf'].__class__.__name__))
-    print("Parámetros: {}".format(
+    print("Modelo: {}".format(model['clf']))
+    print("Mejores Parámetros: {}".format(
         {k: model[k] for k in model.keys() if k != 'clf'}))
     print("Número de variables usadas: {}".format(
         best_clf.best_estimator_['clf'].coef_.shape[1]))
@@ -335,11 +336,17 @@ def main():
     # LECTURA DE DATOS
     #
 
+    # Podemos trabajar con un subconjunto de los datos de entrenamiento
+    if SUBSET_DATA:
+        val_size = 0.4
+    else:
+        val_size = 0.0
+
     # Cargamos los datos de entrenamiento y test
     print("Cargando datos de entrenamiento y test... ", end = "", flush = True)
     X, y, attr_names = read_data(PATH + DATASET_NAME)
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        split_data(X, y, val_size = 0.0, test_size = 0.3)
+        split_data(X, y, val_size = val_size, test_size = 0.3)
     print("Hecho.\n")
 
     #
@@ -356,7 +363,7 @@ def main():
         # Visualizamos las variables más relevantes
         print("Mostrando proyección de las dos variables más relevantes...")
         # TODO: elegir las más relevantes por criterio RF
-        features = [41, 57]
+        features = [44, 57]
         vs.plot_features(
             features, attr_names[features],
             X_train, y_train,
@@ -374,11 +381,11 @@ def main():
     print("--- AJUSTE DE MODELOS LINEALES ---\n")
 
     # Escogemos modelos lineales
-    max_iter = 1000
+    max_iter = 3000
     clfs_lin = [
-        {"clf": [LogisticRegression(max_iter = max_iter,
+        {"clf": [LogisticRegression(penalty = 'l2',
+                                    max_iter = max_iter,
                                     class_weight = 'balanced')],
-         "clf__penalty": ['l1', 'l2'],
          "clf__C": np.logspace(-4, 4, 5)},
         {"clf": [RidgeClassifier(random_state = SEED,
                                  class_weight = 'balanced',

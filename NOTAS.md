@@ -105,7 +105,6 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 10. Valoración de los resultados ( gráficas, métricas de error, análisis de residuos, etc )
 11. Justificar que se ha obtenido la mejor de las posibles soluciones con la técnica elegida y la muestra dada. Argumentar en términos de los errores de ajuste y generalización,
 
-
 # Consideraciones
 
 - Estudiar distribución de clases. Concluir que no están desbalanceadas. (ver [Dataset])
@@ -118,22 +117,24 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 ```
 while true; do make; inotifywait -e modify,close_write memoria.md; done
 ```
+- Weight balance como parámetro a los clasificadores
 
 # Dudas
 
 - Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos?
-- Convertir en un problema de clasificación binaria? PREGUNTAR NICOLÁS; hay referencias del accuracy conseguido.
-- ¿Qué hacer si las clases no son 100% balanceadas?
 - Se pueden usar distintos tipos de preprocesado para distintas clases de modelos? ¿usar polinomios en unas si y en otras no?
 
 # Enfoque
 
 Podemos convertirlo en un problema de clasificación binaria popular vs- unpopular. Hacer las dos cosas?
 
-- Leer artículo de los autores.Repetir experimentos que hacen.
+-
+- Leer artículo de los autores. Repetir experimentos que hacen.
 - Mirar los parámetros por defecto que ponen.
 - Mirar las métricas que usan. usar varias métricas.
 - Gráfica de acc en CV en función de alguna cosa (regularización por ej)
+- Normalización vs estandarización
+- Añadir más técnicas reducción dimensionalidad
 
 # Formato de la documentación
 
