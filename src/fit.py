@@ -78,7 +78,7 @@ SHOW_CV_RESULTS = True
 SUBSET_DATA = False
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
-SHOW = Show.NONE
+SHOW = Show.SOME
 
 #
 # FUNCIONES AUXILIARES
@@ -363,7 +363,7 @@ def main():
         # Visualizamos las variables más relevantes
         print("Mostrando proyección de las dos variables más relevantes...")
         # TODO: elegir las más relevantes por criterio RF
-        features = [44, 57]
+        features = [24, 25]
         vs.plot_features(
             features, attr_names[features],
             X_train, y_train,

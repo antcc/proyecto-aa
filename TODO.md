@@ -6,6 +6,7 @@
 
 # Pendiente
 - Añadir técnicas de reducción de dimensionalidad
+- Normalizar las gráficas para que se vean cosas. Quitar outliers.
 - Importancia de características cuando hagamos RF. Utilizar importancia sin polinomios ni PCA en el conjunto de train para hacer gráficas de las dos más relevantes.
 ```python
 importances = pipe_rf['clf'].feature_importances_
