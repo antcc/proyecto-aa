@@ -85,7 +85,7 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 
 - **Máquina de Soporte de Vectores (SVM)**: se recomienda el núcleo RBF-Gaussiano o el polinomial. Encontrar el mejor valor para los parámetros libres hasta una precisión de 2 cifras (enteras o decimales).
 
-- **Boosting**: Para regresión se recomiendan los árboles como regresores simples justificando el parámetro de aprendiaje.
+- **Boosting**: Se recomienda que para clasificación se usen funciones “stamp”.
 
 - **Random Forest**: Usar como hiperparámetros los valores que por defecto se dan en teoría y experimentar para obtener el número de árboles adecuado.
 
@@ -105,11 +105,6 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 10. Valoración de los resultados ( gráficas, métricas de error, análisis de residuos, etc )
 11. Justificar que se ha obtenido la mejor de las posibles soluciones con la técnica elegida y la muestra dada. Argumentar en términos de los errores de ajuste y generalización,
 
-# Criterios para datos perdidos
-
-- Cuando una muestra de datos tengan más del 10 % de sus datos perdidos puede eliminarla del conjunto de datos si no afecta al tamaño del conjunto de datos. Si es más del 20 % debe eliminarla.
-
-- Los datos perdidos se sustituiran por la suma del valor medio de la variable más un valor aleatorio en el intervalo [−1,5σ, 1,5σ] siendo σ la desviación típica de la dicha variable.
 
 # Consideraciones
 
@@ -129,8 +124,7 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 - Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos?
 - Convertir en un problema de clasificación binaria? PREGUNTAR NICOLÁS; hay referencias del accuracy conseguido.
 - ¿Qué hacer si las clases no son 100% balanceadas?
-- Se pueden usar distintos tipos de preprocesado para distintas clases de modelos?
-- Qué pasa con el fit_intercept?
+- Se pueden usar distintos tipos de preprocesado para distintas clases de modelos? ¿usar polinomios en unas si y en otras no?
 
 # Enfoque
 
@@ -139,6 +133,7 @@ Podemos convertirlo en un problema de clasificación binaria popular vs- unpopul
 - Leer artículo de los autores.Repetir experimentos que hacen.
 - Mirar los parámetros por defecto que ponen.
 - Mirar las métricas que usan. usar varias métricas.
+- Gráfica de acc en CV en función de alguna cosa (regularización por ej)
 
 # Formato de la documentación
 

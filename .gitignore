@@ -3,3 +3,4 @@ resources
 datos
 __pycache__
 *.log
+cachedir

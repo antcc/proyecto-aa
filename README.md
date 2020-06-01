@@ -1,4 +1,4 @@
-# Ajuste de modelos de regresión en la base de datos [Online News Popularity](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity)
+# Ajuste de modelos de clasificación en la base de datos [Online News Popularity](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity)
 
 Realizado junto a [@MiguelLentisco](https://github.com/MiguelLentisco). Curso 2019-20.
 

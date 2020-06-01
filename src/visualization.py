@@ -31,12 +31,10 @@ from sklearn.manifold import TSNE
 #
 
 def wait(save_figures = False):
-    """Introduce una espera hasta que se pulse el intro.
-       Limpia el plot anterior."""
+    """Introduce una espera hasta que se pulse una tecla."""
 
     if not save_figures:
-        input("\n(Pulsa [Enter] para continuar...)\n")
-    plt.close()
+        input("(Pulsa [Enter] para continuar...)\n")
 
 def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
                  figname = "", cmap = cm.tab10, save_figures = False, img_path = ""):
@@ -68,7 +66,10 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
     plt.ylim(ymin - scale_y, ymax + scale_y)
 
     # Mostramos scatter plot con leyenda
-    scatter = plt.scatter(X[:, 0], X[:, 1], c = y, cmap = cmap)
+    scatter = plt.scatter(
+        X[:, 0], X[:, 1],
+        c = y, cmap = cmap,
+        marker = '.')
     if y is not None:
         legend1 = plt.legend(
             *scatter.legend_elements(),
@@ -77,13 +78,14 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
 
     # Pintamos las rectas con leyenda
     if ws is not None:
-        # Elegimos los mismos colores que para los puntos
-        mask = np.ceil(np.linspace(0, len(cmap.colors) - 1, len(np.unique(y)))).astype(int)
-        colors = np.array(cmap.colors)[mask]
+        colors = cm.tab20b.colors
 
         for w, l, c in zip(ws, labels, colors):
             x = np.array([xmin - scale_x, xmax + scale_x])
-            plt.plot(x, (-w[0] * x) / w[1], label = l, lw = 2, ls = "--", color = c)
+            plt.plot(
+                x, (-w[0] * x) / w[1],
+                label = l, lw = 2, ls = "--",
+                color = c)
         plt.legend(loc = "lower right")
 
     # Añadimos leyenda sobre las clases
@@ -93,7 +95,7 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
     if save_figures:
         plt.savefig(img_path + figname + ".png")
     else:
-        plt.show(block = False)
+        plt.show()
 
     wait(save_figures)
 
@@ -122,7 +124,7 @@ def plot_corr_matrix(raw, preproc, save_figures = False, img_path = ""):
     if save_figures:
         plt.savefig(img_path + "correlation.png")
     else:
-        plt.show(block = False)
+        plt.show()
     wait(save_figures)
 
 def plot_feature_importance(importances, n, pca, save_figures = False, img_path = ""):
@@ -149,7 +151,7 @@ def plot_feature_importance(importances, n, pca, save_figures = False, img_path 
     if save_figures:
         plt.savefig(img_path + "importance.png")
     else:
-        plt.show(block = False)
+        plt.show()
     wait(save_figures)
 
 def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
@@ -280,7 +282,7 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
     if save_figures:
         plt.savefig(img_path + "learning_curve.png")
     else:
-        plt.show(block = False)
+        plt.show()
     wait(save_figures)
 
 def plot_tsne(X, y, save_figures = False, img_path = ""):
@@ -306,28 +308,9 @@ def scatter_pca(X, y_pred, save_figures = False, img_path = ""):
         y_pred,
         axis = ["Primera componente principal",
                 "Segunda componente principal"],
-        title = "Proyección de las dos primeras componentes principales",
+        title = ("Proyección de las dos primeras componentes principales con "
+            "etiquetas predichas"),
         figname = "scatter",
-        save_figures = save_figures,
-        img_path = img_path)
-
-def scatter_pca_classes(X, y, ws, labels, save_figures = False, img_path = ""):
-    """Proyección de las dos primeras componentes principales
-       con sus etiquetas reales. Se muestran también una lista de clasificadores.
-         - X: matriz de características bidimensionales.
-         - y: etiquetas reales.
-         - w: coeficientes de los clasificadores.
-         - labels: nombres de los clasificadores."""
-
-    scatter_plot(
-        X[:, [0, 1]], y,
-        axis = ["Primera componente principal",
-                "Segunda componente principal"],
-        ws = ws,
-        labels = labels,
-        title = "Proyección de las dos primeras componentes principales con clasificadores",
-        figname = "scatter_2",
-        cmap = cm.tab10,
         save_figures = save_figures,
         img_path = img_path)
 
@@ -345,7 +328,7 @@ def confusion_matrix(clf, X, y, save_figures = False, img_path = ""):
     if save_figures:
         plt.savefig(img_path + "confusion.png")
     else:
-        plt.show(block = False)
+        plt.show()
     wait(save_figures)
 
 def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, img_path = ""):
@@ -359,7 +342,7 @@ def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, im
     axs[0].bar(
         unique,
         counts,
-        color = cm.Set3.colors)
+        color = [cm.tab10.colors[0], cm.tab10.colors[-1]])
     axs[0].title.set_text("Entrenamiento")
     axs[0].set_xlabel("Clases")
     axs[0].set_ylabel("Número de ejemplos")
@@ -370,7 +353,7 @@ def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, im
     axs[1].bar(
         unique,
         counts,
-        color = cm.Set3.colors)
+        color = [cm.tab10.colors[0], cm.tab10.colors[-1]])
     axs[1].title.set_text("Test")
     axs[1].set_xlabel("Clases")
     axs[1].set_ylabel("Número de ejemplos")
@@ -379,7 +362,7 @@ def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, im
     if save_figures:
         plt.savefig(img_path + "class_distr.png")
     else:
-        plt.show(block = False)
+        plt.show()
     wait(save_figures)
 
 def plot_features(features, names, X, y, save_figures = False, img_path = ""):

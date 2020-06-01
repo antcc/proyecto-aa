@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-# uso: ./fit_class.py
+# uso: ./fit.py
 
 """
 Aprendizaje Automático. Curso 2019/20.
@@ -23,37 +23,39 @@ import numpy as np
 from timeit import default_timer
 from pandas import read_csv
 from enum import Enum
+from joblib import Memory
+from shutil import rmtree
 
 from sklearn.dummy import DummyClassifier
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LogisticRegression, RidgeClassifier, Perceptron
+from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
+from sklearn.random_projection import SparseRandomProjection
 
-import visualization_class as vs
+import visualization as vs
 
 #
-# PARÁMETROS Y DEFINICIONES GLOBALES
+# CLASES Y ESTRUCTURAS GLOBALES
 #
 
-SEED = 2020
-N_CLASSES = 2
-CLASS_THRESHOLD = 1400
-PATH = "../datos/"
-DATASET_NAME = "OnlineNewsPopularity.csv"
-SAVE_FIGURES = False
-IMG_PATH = "../doc/img"
-SHOW = 1  # 0: Ninguna gráfica; 1: algunas gráficas; 2: todas las gráficas
+class Show(Enum):
+    """Cantidad de gráficas a mostrar."""
+
+    NONE = 0
+    SOME = 1
+    ALL = 2
 
 class Selection(Enum):
     """Estrategia de selección de características."""
 
     PCA = 0
-    NONE = 1
+    RANDOM_PROJECTION = 1
+    NONE = 2
 
 class Model(Enum):
     """Clases de modelos para los ajustes."""
@@ -61,6 +63,21 @@ class Model(Enum):
     LINEAR = 0
     TREES = 1
     MLP = 2
+
+#
+# PARÁMETROS GLOBALES
+#
+
+SEED = 2020
+N_CLASSES = 2
+CLASS_THRESHOLD = 1400
+PATH = "../datos/"
+DATASET_NAME = "OnlineNewsPopularity.csv"
+CACHEDIR = "cachedir"
+SHOW_CV_RESULTS = True
+SAVE_FIGURES = False
+IMG_PATH = "../doc/img"
+SHOW = Show.NONE
 
 #
 # FUNCIONES AUXILIARES
@@ -73,8 +90,25 @@ def print_evaluation_metrics(clf, X_lst, y_lst, names):
       - names: lista de nombres de los conjuntos (training, test, ...)."""
 
     for name, X, y in zip(names, X_lst, y_lst):
-        print("Accuracy en {}: {:.3f}%".format(
+        print("* Accuracy en {}: {:.3f}%".format(
             name, 100.0 * clf.score(X, y)))
+
+def print_cv_metrics(results, n_top = 3):
+    """Imprime un resumen de los resultados obtenidos en validación cruzada.
+         - results: diccionario de resultados.
+         - n_top: número de modelos a mostrar de entre los mejores."""
+
+    for i in range(1, n_top + 1):
+        candidates = np.flatnonzero(results['rank_test_score'] == i)
+        for candidate in candidates:
+            model = results['params'][candidate]
+            print("{} (ranking #{})".format(
+                results['params'][candidate]['clf'].__class__.__name__, i))
+            print("Parámetros: {}".format(
+                {k: model[k] for k in model.keys() if k != 'clf'}))
+            print("* Accuracy en CV: {:.3f}% (+- {:.3f}%)\n".format(
+                100.0 * results['mean_test_score'][candidate],
+                100.0 * results['std_test_score'][candidate]))
 
 #
 # LECTURA Y MANIPULACIÓN DE DATOS
@@ -95,7 +129,8 @@ def read_data(filename):
         dtype = np.float64)
 
     # Convertimos la última columna en etiquetas binarias
-    df.iloc[:, -1] = df.iloc[:, -1].apply(lambda x: -1.0 if x < CLASS_THRESHOLD else 1.0)
+    df.iloc[:, -1] = df.iloc[:, -1].apply(
+        lambda x: -1.0 if x < CLASS_THRESHOLD else 1.0)
 
     # Separamos predictores, objetivos y nombres
     X = df.iloc[:, :-1].to_numpy()
@@ -104,7 +139,7 @@ def read_data(filename):
 
     return X, y, names
 
-def split_data(X, y, val_size = 0.2, test_size = 0.3):
+def split_data(X, y, val_size = 0.0, test_size = 0.3):
     """Realiza una división de los datos en entrenamiento/validación/test
        según las proporciones indicadas."""
 
@@ -134,20 +169,31 @@ def split_data(X, y, val_size = 0.2, test_size = 0.3):
 # PREPROCESADO DE DATOS
 #
 
-def preprocess_pipeline(model, selection_strategy = Selection.PCA):
+def preprocess_pipeline(model_class, selection_strategy = Selection.PCA):
     """Construye una lista de transformaciones para el
        preprocesamiento de datos, incluyendo transformaciones polinómicas
        y selección de características. Hay diferentes estrategias para cada
        clase de modelos."""
 
-    if model == Model.LINEAR:
+    preproc_params = {}
+
+    if model_class == Model.LINEAR:
         if selection_strategy == Selection.PCA:
             preproc = [
                 ("var", VarianceThreshold()),
                 ("standardize", StandardScaler()),
-                ("selection", PCA(0.90)),
+                ("selection", PCA(0.95, random_state = SEED)),
                 ("poly", PolynomialFeatures(2, include_bias = False)),
                 ("standardize2", StandardScaler())]
+
+        elif selection_strategy == Selection.RANDOM_PROJECTION:
+            preproc = [
+                ("var", VarianceThreshold()),
+                ("standardize", StandardScaler()),
+                ("selection", SparseRandomProjection(39, random_state = SEED)),
+                ("poly", PolynomialFeatures(2, include_bias = False)),
+                ("standardize2", StandardScaler())]
+
         else:
             preproc = [
                 ("var", VarianceThreshold()),
@@ -155,45 +201,26 @@ def preprocess_pipeline(model, selection_strategy = Selection.PCA):
                 ("poly", PolynomialFeatures(2, include_bias = False)),
                 ("standardize2", StandardScaler())]
 
-    return preproc
+    return preproc, preproc_params
 
-def fit_linear(X_train, X_test, y_train, y_test, selection_strategy = Selection.PCA):
-    """Ajuste de un modelo lineal para un conjunto de datos."""
+def fit(X_train, X_test, y_train, y_test, clfs, model_class, selection_strategy):
+    """Ajuste de varios modelos de clasificación para un conjunto de datos, eligiendo
+       por validación cruzada el mejor de ellos dentro de una clase concreta.
+         - X_train, y_train: datos de entrenamiento.
+         - X_test, y_test: datos de test.
+         - selection_strategy: estrategia de selección de características (ver 'Selection').
+         - model: clase de modelos a ajustar (ver 'Model').
+         - clfs: lista de diccionarios con los modelos concretos para ajustar.
+         """
 
-    # Creamos un pipeline de preprocesado
-    preproc = preprocess_pipeline(Model.LINEAR, selection_strategy)
-    preproc_pipe = Pipeline(preproc)
+    # Construimos un pipeline de preprocesado + clasificación (placeholder) con caché
+    preproc, preproc_params = preprocess_pipeline(model_class, selection_strategy)
+    memory = Memory(location = CACHEDIR, verbose = 0)
+    pipe = Pipeline(preproc + [("clf", DummyClassifier())], memory = memory)
+    search_space = [{**preproc_params, **params} for params in clfs]
 
-    # Obtenemos los datos preprocesados por si los necesitamos
-    X_train_pre = preproc_pipe.fit_transform(X_train, y_train)
-    X_test_pre = preproc_pipe.transform(X_test)
-
-    # Construimos un pipeline de preprocesado + clasificación
-    # (el clasificador que ponemos puede ser cualquiera, es un 'placeholder')
-    pipe = Pipeline(preproc + [("clf", LogisticRegression())])
-
-    if SHOW > 0:
-        print("\nMostrando gráficas sobre preprocesado y características...")
-
-        # Mostramos matriz de correlación de training antes y después de preprocesado
-        vs.plot_corr_matrix(X_train, X_train_pre, SAVE_FIGURES, IMG_PATH)
-
-    # Elegimos los modelos lineales y sus parámetros para CV
-    max_iter = 1000
-    search_space = [
-        {"clf": [LogisticRegression(penalty = 'l2',
-                                    max_iter = max_iter)],
-         "clf__C": np.logspace(-4, 4, 5)},
-        {"clf": [RidgeClassifier(random_state = SEED,
-                                 max_iter = max_iter)],
-         "clf__alpha": np.logspace(-4, 4, 5)},
-        {"clf": [Perceptron(penalty = 'l2',
-                            random_state = SEED,
-                            max_iter = max_iter)],
-         "clf__alpha": np.logspace(-4, 4, 5)}]
-
-    # Buscamos los mejores parámetros por CV
-    print("Ajustando un modelo lineal...\n")
+    # Buscamos los mejores modelos por CV
+    print("Comparando modelos por validación cruzada... ", end = "", flush = True)
     start = default_timer()
     best_clf = GridSearchCV(
         pipe, search_space,
@@ -201,49 +228,58 @@ def fit_linear(X_train, X_test, y_train, y_test, selection_strategy = Selection.
         cv = 5, n_jobs = -1)
     best_clf.fit(X_train, y_train)
     elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo para {} candidatos: {:.3f}s\n".format(
+        len(best_clf.cv_results_['params']), elapsed))
 
-    # Mostramos los resultados
-    print("--- Mejor clasificador lineal ---")
-    print("Parámetros:\n{}".format(best_clf.best_params_['clf']))
+    if SHOW_CV_RESULTS:
+        # Mostramos los resultados de CV
+        n_top = 3
+        print("Mostrando el top {} de mejores modelos en validación cruzada...\n"
+            .format(n_top))
+        print_cv_metrics(best_clf.cv_results_, n_top)
+
+    # Mostramos los resultados del mejor clasificador encontrado
+    model = best_clf.best_params_
+    print("--> Mejor clasificador encontrado <--")
+    print("Modelo: {}".format(model['clf'].__class__.__name__))
+    print("Parámetros: {}".format(
+        {k: model[k] for k in model.keys() if k != 'clf'}))
     print("Número de variables usadas: {}".format(
         best_clf.best_estimator_['clf'].coef_.shape[1]))
-    print("Accuracy en CV: {:.3f}%".format(100.0 * best_clf.best_score_))
+    print("* Accuracy en CV: {:.3f}%".format(100.0 * best_clf.best_score_))
     print_evaluation_metrics(
         best_clf,
         [X_train, X_test],
         [y_train, y_test],
         ["training", "test"])
-    print("Tiempo: {:.3f}s".format(elapsed))
+    print("")
 
-    # Gráficas y visualización
-    if SHOW > 0:
+    if SHOW != Show.NONE:
         vs.wait()
-        print("Mostrando gráficas sobre entrenamiento y predicción...")
+
+        # Obtenemos los datos preprocesados para las gráficas
+        preproc_pipe = Pipeline(best_clf.best_estimator_.steps[:-1])
+        X_train_pre = preproc_pipe.transform(X_train)
+        X_test_pre = preproc_pipe.transform(X_test)
+
+        print("Mostrando matriz de correlación antes y después del preprocesado...")
+        vs.plot_corr_matrix(X_train, X_train_pre, SAVE_FIGURES, IMG_PATH)
 
         # Matriz de confusión
+        print("Mostrando matriz de confusión en test...")
         vs.confusion_matrix(best_clf, X_test, y_test, SAVE_FIGURES, IMG_PATH)
 
-        # Visualización de componentes principales
         if selection_strategy == Selection.PCA:
             # Predicciones para el conjunto de test
             y_pred = best_clf.predict(X_test)
 
-            # Proyección de las dos primeras componentes principales
-            # con etiquetas predichas
+            print("Mostrando proyección de las dos primeras componentes principales en test "
+                  "con etiquetas predichas...")
             vs.scatter_pca(X_test_pre, y_pred, SAVE_FIGURES, IMG_PATH)
 
-            # Seleccionamos dos clases concretas y mostramos también los clasificadores,
-            # frente a las etiquetas reales
-            vs.scatter_pca_classes(
-                X_test_pre, y_test,
-                [best_clf.best_estimator_['clf'].coef_],
-                ["Mejor clasificador lineal"],
-                SAVE_FIGURES, IMG_PATH)
-
-        if SHOW > 1:
-            # Curva de aprendizaje
-            print("Calculando curva de aprendizaje... ")
-            start = default_timer()
+        if SHOW == Show.ALL:
+            print("Calculando y mostrando curva de aprendizaje... ")
             vs.plot_learning_curve(
                 best_clf,
                 X_train, y_train,
@@ -251,8 +287,11 @@ def fit_linear(X_train, X_test, y_train, y_test, selection_strategy = Selection.
                 scoring = 'accuracy',
                 save_figures = SAVE_FIGURES,
                 img_path = IMG_PATH)
-            elapsed = default_timer() - start
-            print("Tiempo: {:.3f}s".format(elapsed))
+
+    # Limpiamos la caché
+    memory.clear(warn = False)
+
+    return best_clf
 
 def fit_dummy(X_train, X_test, y_train, y_test):
     """Ajustamos un clasificador que estima una clase aleatoria teniendo en
@@ -262,20 +301,18 @@ def fit_dummy(X_train, X_test, y_train, y_test):
     dummy_clf = DummyClassifier(strategy = 'stratified')
 
     # Ajustamos el modelo
-    print("Ajustando un modelo dummy...\n")
-    start = default_timer()
     dummy_clf.fit(X_train, y_train)
-    elapsed = default_timer() - start
 
     # Mostramos los resultados
-    print("--- Clasificador aleatorio ---")
     print("Número de variables usadas: {}".format(X_train.shape[1]))
     print_evaluation_metrics(
         dummy_clf,
         [X_train, X_test],
         [y_train, y_test],
         ["training", "test"])
-    print("Tiempo: {:.3f}s".format(elapsed))
+    print("")
+
+    return dummy_clf
 
 #
 # FUNCIÓN PRINCIPAL
@@ -292,49 +329,84 @@ def main():
     # Número de decimales fijo para salida de vectores
     np.set_printoptions(formatter = {'float': lambda x: "{:0.3f}".format(x)})
 
-    print("----- PROYECTO FINAL: AJUSTE DE MODELOS DE CLASIFICACIÓN -----")
+    print("------- PROYECTO FINAL: AJUSTE DE MODELOS DE CLASIFICACIÓN -------\n")
+
+    #
+    # LECTURA DE DATOS
+    #
 
     # Cargamos los datos de entrenamiento y test
     print("Cargando datos de entrenamiento y test... ", end = "", flush = True)
     X, y, attr_names = read_data(PATH + DATASET_NAME)
     X_train, X_val, X_test, y_train, y_val, y_test = \
         split_data(X, y, val_size = 0.0, test_size = 0.3)
-    print("Hecho.")
+    print("Hecho.\n")
 
-    # Inspeccionamos los datos
-    if SHOW > 0:
-        print("Mostrando gráficas de inspección de los datos...")
+    #
+    # INSPECCIÓN DE LOS DATOS
+    #
+
+    if SHOW != Show.NONE:
+        print("--- VISUALIZACIÓN DE LOS DATOS ---\n")
 
         # Mostramos distribución de clases en training y test
+        print("Mostrando gráfica de distribución de clases...")
         vs.plot_class_distribution(y_train, y_test, N_CLASSES, SAVE_FIGURES, IMG_PATH)
 
         # Visualizamos las variables más relevantes
+        print("Mostrando proyección de las dos variables más relevantes...")
         # TODO: elegir las más relevantes por criterio RF
-        features = [44, 57]
+        features = [41, 57]
         vs.plot_features(
             features, attr_names[features],
             X_train, y_train,
             SAVE_FIGURES, IMG_PATH)
 
-        if SHOW > 1:
-            # Visualizamos el conjunto en 2 dimensiones
+        if SHOW == Show.ALL:
+            # Visualizamos el conjunto de entrenamiento en 2 dimensiones
+            print("Mostrando proyección del conjunto de entrenamiento en dos dimensiones...")
             vs.plot_tsne(X_train, y_train, SAVE_FIGURES, IMG_PATH)
 
-    # Ajustamos un modelo lineal
-    fit_linear(
+    #
+    # AJUSTE DE MODELOS LINEALES
+    #
+
+    print("--- AJUSTE DE MODELOS LINEALES ---\n")
+
+    # Escogemos modelos lineales
+    max_iter = 1000
+    clfs_lin = [
+        {"clf": [LogisticRegression(max_iter = max_iter,
+                                    class_weight = 'balanced')],
+         "clf__penalty": ['l1', 'l2'],
+         "clf__C": np.logspace(-4, 4, 5)},
+        {"clf": [RidgeClassifier(random_state = SEED,
+                                 class_weight = 'balanced',
+                                 max_iter = max_iter)],
+         "clf__alpha": np.logspace(-4, 4, 5)}]
+
+    # Ajustamos el mejor modelo
+    best_clf_lin = fit(
         X_train, X_test,
         y_train, y_test,
-        selection_strategy = Selection.PCA)
+        clfs = clfs_lin,
+        selection_strategy = Selection.PCA,
+        model_class = Model.LINEAR)
 
-    # Ajustamos un modelo dummy
-    fit_dummy(X_train, X_test, y_train, y_test)
+    #
+    # CLASIFICADOR ALEATORIO
+    #
 
-    # Comparamos el mejor modelo encontrado de distintas clases
-    #compare(...)
+    print("--- AJUSTE DE MODELO ALEATORIO ---\n")
+
+    clf_dummy = fit_dummy(X_train, X_test, y_train, y_test)
 
     # Imprimimos tiempo total de ejecución
     elapsed = default_timer() - start
-    print("\nTiempo total de ejecución: {:.3f}s".format(elapsed))
+    print("Tiempo total de ejecución: {:.3f}s".format(elapsed))
+
+    # Eliminamos directorio de caché
+    rmtree(CACHEDIR)
 
 if __name__ == "__main__":
     main()

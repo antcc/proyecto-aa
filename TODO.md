@@ -1,7 +1,6 @@
 - Eliminar TODO.md y NOTAS.md cuando terminemos.
 - Leer artículo de los autores.
 - Cambiar ruta de lectura de datos a "datos/"
-- Cambiar nombre a fit.py y visualization.py para el que se decida.
 - Añadir técnicas de selección/reducción dimensionalidad.
 - Importancia de características cuando hagamos RF:
 ```python
@@ -17,4 +16,3 @@ vs.plot_feature_importance(
 - Escalar gráficas para que se vea algo. Eliminar outliers?
 - Arreglar gráficas en general (normalizar variables). Puntitos pequeños.
 - Medir bien tiempos en varias etapas.
-- Cambiar Readme.md si al final hacemos clasificación
