@@ -128,7 +128,8 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 
 Podemos convertirlo en un problema de clasificación binaria popular vs- unpopular. Hacer las dos cosas?
 
--
+- IMPORTANTE: Usar ensembles para conseguir más precisión. Técnicas de bagging/boosting, samplear de los datos de forma
+aleatoria y estratificada para cada clasificador.
 - Leer artículo de los autores. Repetir experimentos que hacen.
 - Mirar los parámetros por defecto que ponen.
 - Mirar las métricas que usan. usar varias métricas.

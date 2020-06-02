@@ -75,7 +75,6 @@ PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_CV_RESULTS = True
-SUBSET_DATA = False
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
 SHOW = Show.SOME
@@ -336,17 +335,11 @@ def main():
     # LECTURA DE DATOS
     #
 
-    # Podemos trabajar con un subconjunto de los datos de entrenamiento
-    if SUBSET_DATA:
-        val_size = 0.4
-    else:
-        val_size = 0.0
-
     # Cargamos los datos de entrenamiento y test
     print("Cargando datos de entrenamiento y test... ", end = "", flush = True)
     X, y, attr_names = read_data(PATH + DATASET_NAME)
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        split_data(X, y, val_size = val_size, test_size = 0.3)
+        split_data(X, y, val_size = 0.0, test_size = 0.3)
     print("Hecho.\n")
 
     #
