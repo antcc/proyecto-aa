@@ -451,7 +451,7 @@ def main():
          "clf__max_depth": [None, 15, 29],
          "clf__ccp_alpha": uniform(loc = 1e-5, scale = 1e-3)}]
 
-    # Ajustamos el mejor modelo
+    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
     best_clf_rf = fit(
         X_train, X_test,
         y_train, y_test,
