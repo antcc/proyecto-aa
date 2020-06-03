@@ -119,23 +119,25 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 ```
 - Weight balance como parámetro a los clasificadores
 
-# Dudas
+# Dudas (para Nicolás)
 
-- Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos?
+- Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos? Vale compararlos todos en el mismo test? explicación del error
 - Se pueden usar distintos tipos de preprocesado para distintas clases de modelos? ¿usar polinomios en unas si y en otras no?
+
 
 # Enfoque
 
 Podemos convertirlo en un problema de clasificación binaria popular vs- unpopular. Hacer las dos cosas?
 
-- IMPORTANTE: Usar ensembles para conseguir más precisión. Técnicas de bagging/boosting, samplear de los datos de forma
-aleatoria y estratificada para cada clasificador.
+- IMPORTANTE: Usar ensembles para conseguir más precisión. Técnicas de bagging/boosting, samplear de los datos de forma aleatoria y estratificada para cada clasificador.
 - Leer artículo de los autores. Repetir experimentos que hacen.
 - Mirar los parámetros por defecto que ponen.
 - Mirar las métricas que usan. usar varias métricas.
 - Gráfica de acc en CV en función de alguna cosa (regularización por ej)
 - Normalización vs estandarización
 - Añadir más técnicas reducción dimensionalidad
+- Comentar que los valores de ccp_alpha para RandomForest se han obtenido llamando a
+`DecisionTree().cost_complexity_pruning_path[1]`
 
 # Formato de la documentación
 

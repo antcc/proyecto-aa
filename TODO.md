@@ -1,5 +1,6 @@
 # Al final
 - Eliminar TODO.md, NOTAS.md y RESULTS.md cuando terminemos.
+- Quitar verbose = 1 de GSearch y RSearch
 - Cambiar ruta de lectura de datos a "datos/"
 - Quitar caché?
 - Comentar código y revisar estilo

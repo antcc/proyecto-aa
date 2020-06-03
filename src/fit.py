@@ -30,12 +30,15 @@ from sklearn.dummy import DummyClassifier
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.random_projection import SparseRandomProjection
+from sklearn.metrics import roc_auc_score
+
+from scipy.stats import uniform
 
 import visualization as vs
 
@@ -61,7 +64,7 @@ class Model(Enum):
     """Clases de modelos para los ajustes."""
 
     LINEAR = 0
-    TREES = 1
+    RF = 1
     MLP = 2
 
 #
@@ -77,7 +80,7 @@ CACHEDIR = "cachedir"
 SHOW_CV_RESULTS = True
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
-SHOW = Show.SOME
+SHOW = Show.NONE
 
 #
 # FUNCIONES AUXILIARES
@@ -90,8 +93,19 @@ def print_evaluation_metrics(clf, X_lst, y_lst, names):
       - names: lista de nombres de los conjuntos (training, test, ...)."""
 
     for name, X, y in zip(names, X_lst, y_lst):
+        # Print acc
         print("* Accuracy en {}: {:.3f}%".format(
             name, 100.0 * clf.score(X, y)))
+
+        # Print auc
+        if hasattr(clf, "predict_proba"):
+            y_pred = clf.predict_proba(X)[:, 1]
+        elif hasattr(clf, "decision_function"):
+            y_pred = clf.decision_function(X)
+        else:
+            continue
+        print("* AUC en {}: {:.3f}%".format(
+            name, 100.0 * roc_auc_score(y, y_pred)))
 
 def print_cv_metrics(results, n_top = 3):
     """Imprime un resumen de los resultados obtenidos en validación cruzada.
@@ -109,6 +123,19 @@ def print_cv_metrics(results, n_top = 3):
             print("* Accuracy en CV: {:.3f}% (+- {:.3f}%)\n".format(
                 100.0 * results['mean_test_score'][candidate],
                 100.0 * results['std_test_score'][candidate]))
+
+def train_and_evaluate(clf, X_train, X_test, y_train, y_test):
+    """Entrena y evalúa un modelo en unos datos concretos.
+         - clf: clasificador a entrenar.
+         - X_train, y_train: datos de entrenamiento.
+         - X_test, y_test: datos de test."""
+
+    clf.fit(X_train, y_train)
+    print_evaluation_metrics(
+        clf,
+        [X_train, X_test],
+        [y_train, y_test],
+        ["training", "test"])
 
 #
 # LECTURA Y MANIPULACIÓN DE DATOS
@@ -169,12 +196,13 @@ def split_data(X, y, val_size = 0.0, test_size = 0.3):
 # PREPROCESADO DE DATOS
 #
 
-def preprocess_pipeline(model_class, selection_strategy = Selection.PCA):
+def preprocess_pipeline(model_class, selection_strategy):
     """Construye una lista de transformaciones para el
        preprocesamiento de datos, incluyendo transformaciones polinómicas
        y selección de características. Hay diferentes estrategias para cada
        clase de modelos."""
 
+    preproc = []
     preproc_params = {}
 
     if model_class == Model.LINEAR:
@@ -201,9 +229,16 @@ def preprocess_pipeline(model_class, selection_strategy = Selection.PCA):
                 ("poly", PolynomialFeatures(2, include_bias = False)),
                 ("standardize2", StandardScaler())]
 
+    elif model_class == Model.RF:
+        preproc = [
+            ("var", VarianceThreshold()),
+            ("standardize", StandardScaler())]
+
     return preproc, preproc_params
 
-def fit(X_train, X_test, y_train, y_test, clfs, model_class, selection_strategy):
+def fit(X_train, X_test, y_train, y_test,
+        clfs, model_class, selection_strategy,
+        randomized = False, cv_steps = 10):
     """Ajuste de varios modelos de clasificación para un conjunto de datos, eligiendo
        por validación cruzada el mejor de ellos dentro de una clase concreta.
          - X_train, y_train: datos de entrenamiento.
@@ -211,6 +246,8 @@ def fit(X_train, X_test, y_train, y_test, clfs, model_class, selection_strategy)
          - selection_strategy: estrategia de selección de características (ver 'Selection').
          - model: clase de modelos a ajustar (ver 'Model').
          - clfs: lista de diccionarios con los modelos concretos para ajustar.
+         - randomized: si es True, la búsqueda en grid se produce de forma aleatorizada.
+         - cv_steps: si la búsqueda es aleatorizada, indica el nº de combinaciones a probar.
          """
 
     # Construimos un pipeline de preprocesado + clasificación (placeholder) con caché
@@ -222,15 +259,24 @@ def fit(X_train, X_test, y_train, y_test, clfs, model_class, selection_strategy)
     # Buscamos los mejores modelos por CV
     print("Comparando modelos por validación cruzada... ", end = "", flush = True)
     start = default_timer()
-    best_clf = GridSearchCV(
-        pipe, search_space,
-        scoring = 'accuracy',
-        cv = 5, n_jobs = -1)
+    if randomized:
+        best_clf = RandomizedSearchCV(
+            pipe, search_space,
+            scoring = 'accuracy',
+            n_iter = cv_steps,
+            cv = 5, n_jobs = -1,
+            verbose = 1)
+    else:
+        best_clf = GridSearchCV(
+            pipe, search_space,
+            scoring = 'accuracy',
+            cv = 5, n_jobs = -1,
+            verbose = 1)
     best_clf.fit(X_train, y_train)
     elapsed = default_timer() - start
     print("Hecho.")
-    print("Tiempo para {} candidatos: {:.3f}s\n".format(
-        len(best_clf.cv_results_['params']), elapsed))
+    print("Tiempo para {} candidatos: {:.3f}m\n".format(
+        len(best_clf.cv_results_['params']), elapsed / 60.0))
 
     if SHOW_CV_RESULTS:
         # Mostramos los resultados de CV
@@ -246,7 +292,7 @@ def fit(X_train, X_test, y_train, y_test, clfs, model_class, selection_strategy)
     print("Mejores Parámetros: {}".format(
         {k: model[k] for k in model.keys() if k != 'clf'}))
     print("Número de variables usadas: {}".format(
-        best_clf.best_estimator_['clf'].coef_.shape[1]))
+        best_clf.best_estimator_['clf'].n_features_in_))
     print("* Accuracy en CV: {:.3f}%".format(100.0 * best_clf.best_score_))
     print_evaluation_metrics(
         best_clf,
@@ -368,22 +414,20 @@ def main():
             vs.plot_tsne(X_train, y_train, SAVE_FIGURES, IMG_PATH)
 
     #
-    # AJUSTE DE MODELOS LINEALES
+    # CLASIFICADOR LINEAL
     #
 
     print("--- AJUSTE DE MODELOS LINEALES ---\n")
 
     # Escogemos modelos lineales
-    max_iter = 3000
+    max_iter = 5000
     clfs_lin = [
         {"clf": [LogisticRegression(penalty = 'l2',
-                                    max_iter = max_iter,
-                                    class_weight = 'balanced')],
-         "clf__C": np.logspace(-4, 4, 5)},
+                                    max_iter = max_iter)],
+         "clf__C": np.logspace(-4, 4, 9)},
         {"clf": [RidgeClassifier(random_state = SEED,
-                                 class_weight = 'balanced',
                                  max_iter = max_iter)],
-         "clf__alpha": np.logspace(-4, 4, 5)}]
+         "clf__alpha": np.logspace(-4, 4, 9)}]
 
     # Ajustamos el mejor modelo
     best_clf_lin = fit(
@@ -392,6 +436,30 @@ def main():
         clfs = clfs_lin,
         selection_strategy = Selection.PCA,
         model_class = Model.LINEAR)
+
+    #
+    # CLASIFICADOR RANDOM FOREST
+    #
+
+    print("--- AJUSTE DE RANDOM FOREST ---\n")
+
+    # Escogemos modelos de Random Forest
+    clfs_rf = [
+        {"clf": [RandomForestClassifier(random_state = SEED,
+                                        n_jobs = -1)],
+         "clf__n_estimators": [200, 400],
+         "clf__max_depth": [None, 15, 29],
+         "clf__ccp_alpha": uniform(loc = 1e-5, scale = 1e-3)}]
+
+    # Ajustamos el mejor modelo
+    best_clf_rf = fit(
+        X_train, X_test,
+        y_train, y_test,
+        clfs = clfs_rf,
+        selection_strategy = Selection.NONE,
+        model_class = Model.RF,
+        randomized = True,
+        cv_steps = 20)
 
     #
     # CLASIFICADOR ALEATORIO
@@ -403,7 +471,7 @@ def main():
 
     # Imprimimos tiempo total de ejecución
     elapsed = default_timer() - start
-    print("Tiempo total de ejecución: {:.3f}s".format(elapsed))
+    print("Tiempo total de ejecución: {:.3f}m".format(elapsed / 60.0))
 
     # Eliminamos directorio de caché
     rmtree(CACHEDIR)
