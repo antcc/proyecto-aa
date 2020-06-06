@@ -118,16 +118,15 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 while true; do make; inotifywait -e modify,close_write memoria.md; done
 ```
 - Weight balance como parámetro a los clasificadores
-
+- https://github.com/interpretml/interpret
 # Dudas (para Nicolás)
 
 - Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos? Vale compararlos todos en el mismo test? explicación del error
 - Se pueden usar distintos tipos de preprocesado para distintas clases de modelos? ¿usar polinomios en unas si y en otras no?
+- Dentro de la clase lineal entran los SVM lineales?
 
 
 # Enfoque
-
-Podemos convertirlo en un problema de clasificación binaria popular vs- unpopular. Hacer las dos cosas?
 
 - IMPORTANTE: Usar ensembles para conseguir más precisión. Técnicas de bagging/boosting, samplear de los datos de forma aleatoria y estratificada para cada clasificador.
 - Leer artículo de los autores. Repetir experimentos que hacen.
@@ -135,9 +134,10 @@ Podemos convertirlo en un problema de clasificación binaria popular vs- unpopul
 - Mirar las métricas que usan. usar varias métricas.
 - Gráfica de acc en CV en función de alguna cosa (regularización por ej)
 - Normalización vs estandarización
-- Añadir más técnicas reducción dimensionalidad
+- Añadir más técnicas reducción dimensionalidad (sklearn.manifold.SpectralEmbedding)
 - Comentar que los valores de ccp_alpha para RandomForest se han obtenido llamando a
-`DecisionTree().cost_complexity_pruning_path[1]`
+`DecisionTree().cost_complexity_pruning_path[1]`. El criterio de selección de predictores por defecto es sqrt.
+- Eliminar outliers?
 
 # Formato de la documentación
 

@@ -1,66 +1,66 @@
 # Modelos lineales
 
---> PCA(0.95)
+--> PCA(0.95) + Poly(2)
 
-Tiempo para 18 candidatos: 10.180m
+Tiempo para 18 candidatos: 6.520min
 
 Mostrando el top 3 de mejores modelos en validación cruzada...
 
 RidgeClassifier (ranking #1)
-Parámetros: {'clf__alpha': 1.0}
-* Accuracy en CV: 65.575% (+- 0.473%)
+Parámetros: {'clf__alpha': 1.7782794100389228}
+* Accuracy en CV: 65.571% (+- 0.441%)
 
 RidgeClassifier (ranking #2)
 Parámetros: {'clf__alpha': 10.0}
 * Accuracy en CV: 65.560% (+- 0.507%)
 
 RidgeClassifier (ranking #3)
-Parámetros: {'clf__alpha': 0.001}
-* Accuracy en CV: 65.539% (+- 0.620%)
+Parámetros: {'clf__alpha': 0.05623413251903491}
+* Accuracy en CV: 65.535% (+- 0.643%)
 
 --> Mejor clasificador encontrado <--
-Modelo: RidgeClassifier(max_iter=5000, random_state=2020)
-Mejores Parámetros: {'clf__alpha': 1.0}
+Modelo: RidgeClassifier(alpha=1.7782794100389228, max_iter=3000, random_state=2020)
+Mejores Parámetros: {'clf__alpha': 1.7782794100389228}
 Número de variables usadas: 702
-* Accuracy en CV: 65.575%
-* Accuracy en training: 67.542%
-* AUC en training: 74.155%
-* Accuracy en test: 65.596%
-* AUC en test: 70.850%
+* Accuracy en CV: 65.571%
+* Accuracy en training: 67.560%
+* AUC en training: 74.137%
+* Accuracy en test: **65.630%**
+* AUC en test: **70.853%**
+
 
 # Random Forest
 
-Tiempo para 20 candidatos: 17.538m
+Tiempo para 20 candidatos: 18.802m
 
 Mostrando el top 3 de mejores modelos en validación cruzada...
 
 RandomForestClassifier (ranking #1)
-Parámetros: {'clf__ccp_alpha': 0.00017970243840241938, 'clf__max_depth': 29, 'clf__n_estimators': 200}
-* Accuracy en CV: 67.117% (+- 0.366%)
+Parámetros: {'clf__ccp_alpha': 0.00013188070892093489, 'clf__max_depth': None, 'clf__n_estimators': 400}
+* Accuracy en CV: 67.373% (+- 0.288%)
 
 RandomForestClassifier (ranking #2)
-Parámetros: {'clf__ccp_alpha': 0.0002298529412734188, 'clf__max_depth': None, 'clf__n_estimators': 400}
-* Accuracy en CV: 67.077% (+- 0.353%)
+Parámetros: {'clf__ccp_alpha': 9.10352215253087e-05, 'clf__max_depth': 29, 'clf__n_estimators': 400}
+* Accuracy en CV: 67.240% (+- 0.484%)
 
 RandomForestClassifier (ranking #3)
-Parámetros: {'clf__ccp_alpha': 5.2985619275654474e-05, 'clf__max_depth': 29, 'clf__n_estimators': 200}
-* Accuracy en CV: 66.980% (+- 0.408%)
+Parámetros: {'clf__ccp_alpha': 3.229291988920536e-05, 'clf__max_depth': 29, 'clf__n_estimators': 400}
+* Accuracy en CV: 67.182% (+- 0.477%)
 
 --> Mejor clasificador encontrado <--
-Modelo: RandomForestClassifier(ccp_alpha=0.00017970243840241938, max_depth=29,
-                               n_estimators=200, n_jobs=-1, random_state=2020)
-Mejores Parámetros: {'clf__ccp_alpha': 0.00017970243840241938, 'clf__max_depth': 29, 'clf__n_estimators': 200}
+Modelo: RandomForestClassifier(n_jobs=-1, random_state=2020)
+Mejores Parámetros: {'clf__ccp_alpha': 0.00013188070892093489, 'clf__max_depth': None, 'clf__n_estimators': 400}
 Número de variables usadas: 58
-* Accuracy en CV: 67.117%
-* Accuracy en training: 82.036%
-* AUC en training: 90.297%
-* Accuracy en test: 66.420%
-* AUC en test: 72.560%
+* Accuracy en CV: 67.373%
+* Accuracy en training: 90.674%
+* AUC en training: 97.091%
+* Accuracy en test: **66.479%**
+* AUC en test: **72.543%**
 
 # Dummy
 
 Número de variables usadas: 58
 * Accuracy en training: 50.105%
 * AUC en training: 49.398%
-* Accuracy en test: 49.983%
-* AUC en test: 50.764%
+* Accuracy en test: **49.983%**
+* AUC en test: **50.764%**

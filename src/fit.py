@@ -37,8 +37,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.random_projection import SparseRandomProjection
 from sklearn.metrics import roc_auc_score
-
-from scipy.stats import uniform
+from sklearn.utils.fixes import loguniform
 
 import visualization as vs
 
@@ -93,11 +92,11 @@ def print_evaluation_metrics(clf, X_lst, y_lst, names):
       - names: lista de nombres de los conjuntos (training, test, ...)."""
 
     for name, X, y in zip(names, X_lst, y_lst):
-        # Print acc
+        # Mostramos accuracy
         print("* Accuracy en {}: {:.3f}%".format(
             name, 100.0 * clf.score(X, y)))
 
-        # Print auc
+        # Mostramos AUC
         if hasattr(clf, "predict_proba"):
             y_pred = clf.predict_proba(X)[:, 1]
         elif hasattr(clf, "decision_function"):
@@ -275,7 +274,7 @@ def fit(X_train, X_test, y_train, y_test,
     best_clf.fit(X_train, y_train)
     elapsed = default_timer() - start
     print("Hecho.")
-    print("Tiempo para {} candidatos: {:.3f}m\n".format(
+    print("Tiempo para {} candidatos: {:.3f}min\n".format(
         len(best_clf.cv_results_['params']), elapsed / 60.0))
 
     if SHOW_CV_RESULTS:
@@ -420,14 +419,15 @@ def main():
     print("--- AJUSTE DE MODELOS LINEALES ---\n")
 
     # Escogemos modelos lineales
-    max_iter = 5000
+    max_iter = 3000
     clfs_lin = [
         {"clf": [LogisticRegression(penalty = 'l2',
+                                    random_state = SEED,
                                     max_iter = max_iter)],
-         "clf__C": np.logspace(-4, 4, 9)},
+         "clf__C": np.logspace(-4, 2, 9)},
         {"clf": [RidgeClassifier(random_state = SEED,
                                  max_iter = max_iter)],
-         "clf__alpha": np.logspace(-4, 4, 9)}]
+         "clf__alpha": np.logspace(-2, 4, 9)}]
 
     # Ajustamos el mejor modelo
     best_clf_lin = fit(
@@ -447,9 +447,9 @@ def main():
     clfs_rf = [
         {"clf": [RandomForestClassifier(random_state = SEED,
                                         n_jobs = -1)],
-         "clf__n_estimators": [200, 400],
+         "clf__n_estimators": [100, 200, 400],
          "clf__max_depth": [None, 15, 29],
-         "clf__ccp_alpha": uniform(loc = 1e-5, scale = 1e-3)}]
+         "clf__ccp_alpha": loguniform(1e-5, 1e-2)}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
     best_clf_rf = fit(
@@ -471,7 +471,7 @@ def main():
 
     # Imprimimos tiempo total de ejecución
     elapsed = default_timer() - start
-    print("Tiempo total de ejecución: {:.3f}m".format(elapsed / 60.0))
+    print("Tiempo total de ejecución: {:.3f}min".format(elapsed / 60.0))
 
     # Eliminamos directorio de caché
     rmtree(CACHEDIR)

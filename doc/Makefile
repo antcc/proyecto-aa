@@ -7,7 +7,7 @@ PFLAGS += --pdf-engine=xelatex
 # GENERAL VARIABLES
 SRCS := header.md memoria.md
 DEPS := citas.bib style.csl
-OUTPDF := ../memoria.pdf
+OUTPDF := memoria.pdf
 
 .PHONY: all clean
 
