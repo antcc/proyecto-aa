@@ -122,6 +122,9 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 # Dudas (para Nicolás)
 
 - Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos? Vale compararlos todos en el mismo test? explicación del error
+- Para comparar y cotas, dos procedimientos:
+a) Realizar un division train/test, ajustar el mejor modelo en cada caso por CV con train, evaluar en test. Comparar los N resultados finales en test, elegir el mejor, calcular cota con esos datos.
+b) Realizar division train/test/val, ajustar mejor modelo en cada caso por CV en train, comparar en validacion todos los modelos, error de cv, finalmente evaluar solo el mejor en test y dar esa cota.
 - Se pueden usar distintos tipos de preprocesado para distintas clases de modelos? ¿usar polinomios en unas si y en otras no?
 - Dentro de la clase lineal entran los SVM lineales?
 
@@ -137,7 +140,12 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 - Añadir más técnicas reducción dimensionalidad (sklearn.manifold.SpectralEmbedding)
 - Comentar que los valores de ccp_alpha para RandomForest se han obtenido llamando a
 `DecisionTree().cost_complexity_pruning_path[1]`. El criterio de selección de predictores por defecto es sqrt.
-- Eliminar outliers?
+- Ventajas e inconvenientes de cada modelo. Pérdida de interpretabilidad, tiempo, etc.
+- Comentar algo de outliers (en una segunda vuelta, pero no eliminar)
+- Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
+- Elegir el modelo en cada caso: si hay variables numéricas, elijo tal, si no, cual..
+- Estructurar código para que por defecto solo se haga train/test en los modelos finales. Permitir realizar el proceso completo
+- de elección de parámetros y modelos etc.
 
 # Formato de la documentación
 
