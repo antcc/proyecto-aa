@@ -19,12 +19,15 @@ Antonio Coín Castro
 #
 
 import numpy as np
+import pandas as pd
+import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib import cm
 
 from sklearn.model_selection import learning_curve
 from sklearn.metrics import plot_confusion_matrix
 from sklearn.manifold import TSNE
+
 
 #
 # FUNCIONES DE VISUALIZACIÓN
@@ -379,3 +382,64 @@ def plot_features(features, names, X, y, save_figures = False, img_path = ""):
         figname = "scatter_relevance",
         save_figures = save_figures,
         img_path = img_path)
+
+def plot_RF_analysis(best_clf, mostrar_heatmap = True, mostrar_fit = True):
+    """ Imprime el mapa de calor/gráficos de los hiperparámetros de
+        RandomForest.
+        
+        - best_clf: mejor clasificador RF usando GridSearchCV
+        - mostrar_heatmap: si mostrar el mapa de calor
+        - mostrar_fit: si mostrar los gráficos de acierto y tiempo
+    """
+
+    params = best_clf.cv_results_["params"]
+    max_depth = []
+    n_estimators = []
+    for param in params:
+        max_depth.append(param["clf__max_depth"])
+        n_estimators.append(param["clf__n_estimators"])
+      
+    max_depth_uniq = np.unique(max_depth)
+    max_depth_size = max_depth_uniq.size
+    n_estimators_uniq = np.unique(n_estimators)
+    n_estimators_size = n_estimators_uniq.size
+        
+    # Muestra acc-cv frente al hiperparámetro n_estimators
+    if mostrar_fit:
+        # Datos
+        cv_acc = np.array(best_clf.cv_results_["mean_test_score"])
+        cv_time = np.array(best_clf.cv_results_["mean_fit_time"])
+        cv_acc = cv_acc.reshape((max_depth_size, n_estimators_size))
+        cv_time = cv_time.reshape((max_depth_size, n_estimators_size))
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
+        
+        # Por cada valor de max_depth
+        for i in range(max_depth_size):
+            ax1.plot(n_estimators_uniq, cv_acc[i], "-o", 
+                     label = str(max_depth_uniq[i]))
+            ax1.set_xlabel("n_estimators")
+            ax1.set_ylabel("acc-cv")
+            ax2.plot(n_estimators_uniq, cv_time[i], "-o", 
+                     label = str(max_depth_uniq[i]))
+            ax2.set_xlabel("n_estimators")
+            ax2.set_ylabel("tiempo (s)")
+            
+        ax1.legend(title = "max_depth", ncol = 2)
+        ax2.legend(title = "max_depth", ncol = 2)
+        fig.tight_layout()
+        plt.show()
+            
+    # Mapa de calor con hiperparametros n_estimators y max_depth
+    if mostrar_heatmap:
+        # cv-acc
+        cv_acc = np.array(best_clf.cv_results_["mean_test_score"])
+        data_dic = {"max_depth": max_depth, "n_estimators": n_estimators, 
+                    "cv_acc": cv_acc}
+        # Dataframe
+        df = pd.DataFrame(data = data_dic)
+        # Transformación para heatmap
+        df = pd.pivot_table(df, values = "cv_acc", index = ["max_depth"], 
+                            columns = "n_estimators")
+        sns.heatmap(df, linewidth=0.5, cmap = "RdBu")
+        plt.show()
