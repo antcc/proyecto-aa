@@ -462,6 +462,25 @@ def main():
         model_class = Model.RF,
         randomized = True,
         cv_steps = 20)"""
+    
+    # Análisis de rendimiento de Random Forest
+    # TODO: Usar el best_clf de arriba?
+    RF_analysis = False
+    if RF_analysis:
+        clfs_rf = [
+        {"clf": [RandomForestClassifier(random_state = SEED,
+                                        n_jobs = -1)],
+         "clf__n_estimators": [50, 75, 100, 150, 200, 250, 300, 400, 500, 600],
+         "clf__max_depth": [5, 10, 15, 20, 30, 40, 50]}]
+            
+        best_clf_rf = fit(
+        X_train, X_test,
+        y_train, y_test,
+        clfs = clfs_rf,
+        selection_strategy = Selection.NONE,
+        model_class = Model.RF)
+         
+        vs.plot_RF_analysis(best_clf_rf)
 
     #
     # CLASIFICADOR ADABOOST
