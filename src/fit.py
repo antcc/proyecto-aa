@@ -31,8 +31,10 @@ from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-from sklearn.linear_model import LogisticRegression, RidgeClassifier
+from sklearn.linear_model import LogisticRegression, RidgeClassifier, \
+    SGDClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.random_projection import SparseRandomProjection
@@ -67,6 +69,7 @@ class Model(Enum):
     RF = 1
     BOOST = 2
     MLP = 3
+    KNN = 4
 
 #
 # PARÁMETROS GLOBALES
@@ -429,6 +432,8 @@ def main():
          "clf__C": np.logspace(-4, 2, 9)},
         {"clf": [RidgeClassifier(random_state = SEED,
                                  max_iter = max_iter)],
+         "clf__alpha": np.logspace(-2, 4, 9)},
+        {"clf": [SGDClassifier(random_state = SEED)],
          "clf__alpha": np.logspace(-2, 4, 9)}]
 
     # Ajustamos el mejor modelo
@@ -462,7 +467,7 @@ def main():
         model_class = Model.RF,
         randomized = True,
         cv_steps = 20)"""
-    
+
     # Análisis de rendimiento de Random Forest
     # TODO: Usar el best_clf de arriba?
     RF_analysis = False
@@ -472,14 +477,14 @@ def main():
                                         n_jobs = -1)],
          "clf__n_estimators": [50, 75, 100, 150, 200, 250, 300, 400, 500, 600],
          "clf__max_depth": [5, 10, 15, 20, 30, 40, 50]}]
-            
+
         best_clf_rf = fit(
         X_train, X_test,
         y_train, y_test,
         clfs = clfs_rf,
         selection_strategy = Selection.NONE,
         model_class = Model.RF)
-         
+
         vs.plot_RF_analysis(best_clf_rf)
 
     #
@@ -488,7 +493,7 @@ def main():
 
     print("--- AJUSTE DE ADABOOST ---\n")
 
-    # Escogemos modelos de Random Forest
+    # Escogemos modelos de AdaBoost
     clfs_boost = [
         {"clf": [AdaBoostClassifier(random_state = SEED)],
          "clf__n_estimators": [100, 150, 200],
@@ -537,6 +542,25 @@ def main():
         clfs = clfs_mlp,
         selection_strategy = Selection.PCA,
         model_class = Model.MLP)
+
+    #
+    # CLASIFICADOR KNN
+    #
+
+    print("--- AJUSTE DE KNN ---\n")
+
+    # Escogemos modelos de KNN
+    clfs_knn = [
+        {"clf": [KNeighborsClassifier(random_state = SEED)],
+         "clf__n_neighbors": [1, 2, 3, 4, 5, 10]}]
+
+    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
+    """best_clf_knn = fit(
+        X_train, X_test,
+        y_train, y_test,
+        clfs = clfs_knn,
+        selection_strategy = Selection.NONE,
+        model_class = Model.KNN)"""
 
     #
     # CLASIFICADOR ALEATORIO
