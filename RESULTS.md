@@ -28,7 +28,6 @@ Número de variables usadas: 702
 * Accuracy en test: **65.630%**
 * AUC en test: **70.853%**
 
-
 # Random Forest
 
 Tiempo para 20 candidatos: 18.802m
@@ -56,6 +55,39 @@ Número de variables usadas: 58
 * AUC en training: 97.091%
 * Accuracy en test: **66.479%**
 * AUC en test: **72.543%**
+
+# Adaboost
+
+Tiempo para 9 candidatos: 4.590min
+
+Mostrando el top 3 de mejores modelos en validación cruzada...
+
+AdaBoostClassifier (ranking #1)
+Parámetros: {'clf__learning_rate': 0.5, 'clf__n_estimators': 200}
+* Accuracy en CV: 66.886% (+- 0.314%)
+
+AdaBoostClassifier (ranking #2)
+Parámetros: {'clf__learning_rate': 0.5, 'clf__n_estimators': 150}
+* Accuracy en CV: 66.768% (+- 0.237%)
+
+AdaBoostClassifier (ranking #3)
+Parámetros: {'clf__learning_rate': 0.5, 'clf__n_estimators': 100}
+* Accuracy en CV: 66.616% (+- 0.305%)
+
+AdaBoostClassifier (ranking #3)
+Parámetros: {'clf__learning_rate': 1.0, 'clf__n_estimators': 150}
+* Accuracy en CV: 66.616% (+- 0.291%)
+
+--> Mejor clasificador encontrado <--
+Modelo: AdaBoostClassifier(learning_rate=0.5, n_estimators=200, random_state=2020)
+Mejores Parámetros: {'clf__learning_rate': 0.5, 'clf__n_estimators': 200}
+Número de variables usadas: 58
+* Accuracy en CV: 66.886%
+* Accuracy en training: 68.101%
+* AUC en training: 74.436%
+* Accuracy en test: **65.579%**
+* AUC en test: **71.767%**
+
 
 # Dummy
 

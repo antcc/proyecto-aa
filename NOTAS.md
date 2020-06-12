@@ -119,6 +119,9 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 ```
 - Weight balance como parámetro a los clasificadores
 - https://github.com/interpretml/interpret
+- **Importante:** poner versión de sklearn en la memoria.
+
+
 # Dudas (para Nicolás)
 
 - Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos? Vale compararlos todos en el mismo test? explicación del error

@@ -32,12 +32,13 @@ from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.random_projection import SparseRandomProjection
 from sklearn.metrics import roc_auc_score
 from sklearn.utils.fixes import loguniform
+from sklearn.neural_network import MLPClassifier
 
 import visualization as vs
 
@@ -64,7 +65,8 @@ class Model(Enum):
 
     LINEAR = 0
     RF = 1
-    MLP = 2
+    BOOST = 2
+    MLP = 3
 
 #
 # PARÁMETROS GLOBALES
@@ -228,7 +230,7 @@ def preprocess_pipeline(model_class, selection_strategy):
                 ("poly", PolynomialFeatures(2, include_bias = False)),
                 ("standardize2", StandardScaler())]
 
-    elif model_class == Model.RF:
+    else:
         preproc = [
             ("var", VarianceThreshold()),
             ("standardize", StandardScaler())]
@@ -430,12 +432,12 @@ def main():
          "clf__alpha": np.logspace(-2, 4, 9)}]
 
     # Ajustamos el mejor modelo
-    best_clf_lin = fit(
+    """best_clf_lin = fit(
         X_train, X_test,
         y_train, y_test,
         clfs = clfs_lin,
         selection_strategy = Selection.PCA,
-        model_class = Model.LINEAR)
+        model_class = Model.LINEAR)"""
 
     #
     # CLASIFICADOR RANDOM FOREST
@@ -452,14 +454,70 @@ def main():
          "clf__ccp_alpha": loguniform(1e-5, 1e-2)}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    best_clf_rf = fit(
+    """best_clf_rf = fit(
         X_train, X_test,
         y_train, y_test,
         clfs = clfs_rf,
         selection_strategy = Selection.NONE,
         model_class = Model.RF,
         randomized = True,
-        cv_steps = 20)
+        cv_steps = 20)"""
+
+    #
+    # CLASIFICADOR ADABOOST
+    #
+
+    print("--- AJUSTE DE ADABOOST ---\n")
+
+    # Escogemos modelos de Random Forest
+    clfs_boost = [
+        {"clf": [AdaBoostClassifier(random_state = SEED)],
+         "clf__n_estimators": [100, 150, 200],
+         "clf__learning_rate": [0.5, 1.0, 2.0]}]
+
+    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
+    """best_clf_boost = fit(
+        X_train, X_test,
+        y_train, y_test,
+        clfs = clfs_boost,
+        selection_strategy = Selection.NONE,
+        model_class = Model.BOOST)"""
+
+    #
+    # CLASIFICADOR MLP
+    #
+
+    print("--- AJUSTE DE MLP ---\n")
+
+    # Escogemos modelos de Random Forest
+    from scipy.stats import randint
+
+    class multi_randint():
+        def __init__(self, low, high, size):
+            self.low = low,
+            self.high = high
+            self.size = size
+
+        def rvs(self, random_state = 1):
+            return randint.rvs(self.low, self.high, size = self.size, random_state = random_state)
+
+    clfs_mlp = [
+        {"clf": [MLPClassifier(random_state = SEED,
+                               learning_rate_init = 0.1,
+                               solver = 'sgd',
+                               hidden_layer_sizes = (75, 2, 75),
+                               learning_rate = 'adaptive',
+                               activation = 'relu',
+                               tol = 1e-3,
+                               alpha = 1.0)]}]
+
+    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
+    best_clf_mlp = fit(
+        X_train, X_test,
+        y_train, y_test,
+        clfs = clfs_mlp,
+        selection_strategy = Selection.PCA,
+        model_class = Model.MLP)
 
     #
     # CLASIFICADOR ALEATORIO
