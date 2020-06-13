@@ -11,6 +11,7 @@ Realizado junto a [@MiguelLentisco](https://github.com/MiguelLentisco). Curso 20
 - NumPy 1.18.0+
 - Pandas 1.0.4+
 - Matplotlib 3.2.1+
+- Seaborn 0.10.1+
 
 ### Documentación
 

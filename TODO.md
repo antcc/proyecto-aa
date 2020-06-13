@@ -17,3 +17,6 @@ vs.plot_feature_importance(
 ```
 - Comparar el mejor modelo de distintas clases de modelos. Gráficas.
 - Arreglar gráficas en general (normalizar variables?).
+
+PONER CÓDIGO PARA QUE SE ENTRENEN Y EVALUEN SOLO LOS MEJORES MODELOS, Y LO DE ELEGIR LOS PARÁMETROS SEA OPCIONAL.
+- Fallo de memoria con rbf.
