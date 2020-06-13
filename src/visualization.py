@@ -383,16 +383,20 @@ def plot_features(features, names, X, y, save_figures = False, img_path = ""):
         save_figures = save_figures,
         img_path = img_path)
 
-def plot_RF_analysis(best_clf, mostrar_heatmap = True, mostrar_fit = True):
-    """ Imprime el mapa de calor/gráficos de los hiperparámetros de
+def plot_RF_analysis(RF_cv, mostrar_heatmap = True, mostrar_fit = True,
+                     save_figures = False, img_path = ""):
+    """ 
+        Imprime el mapa de calor/gráficos de los hiperparámetros de
         RandomForest.
         
-        - best_clf: mejor clasificador RF usando GridSearchCV
+        - RF_cv: clasificadores RF usando GridSearchCV
         - mostrar_heatmap: si mostrar el mapa de calor
-        - mostrar_fit: si mostrar los gráficos de acierto y tiempo
+        - mostrar_fit: si mostrar los gráficos de ajuste/tiempo
+        - save_figures: si guardar los gráficos
+        - img_path: la ruta del archivo donde guardar los gráficos   
     """
 
-    params = best_clf.cv_results_["params"]
+    params = RF_cv.cv_results_["params"]
     max_depth = []
     n_estimators = []
     for param in params:
@@ -407,8 +411,8 @@ def plot_RF_analysis(best_clf, mostrar_heatmap = True, mostrar_fit = True):
     # Muestra acc-cv frente al hiperparámetro n_estimators
     if mostrar_fit:
         # Datos
-        cv_acc = np.array(best_clf.cv_results_["mean_test_score"])
-        cv_time = np.array(best_clf.cv_results_["mean_fit_time"])
+        cv_acc = np.array(RF_cv.cv_results_["mean_test_score"])
+        cv_time = np.array(RF_cv.cv_results_["mean_fit_time"])
         cv_acc = cv_acc.reshape((max_depth_size, n_estimators_size))
         cv_time = cv_time.reshape((max_depth_size, n_estimators_size))
         
@@ -427,13 +431,19 @@ def plot_RF_analysis(best_clf, mostrar_heatmap = True, mostrar_fit = True):
             
         ax1.legend(title = "max_depth", ncol = 2)
         ax2.legend(title = "max_depth", ncol = 2)
+        plt.suptitle("Fit/tiempo - Hyperparam RF")
         fig.tight_layout()
-        plt.show()
+        
+        if save_figures:
+            plt.savefig(img_path + "RF_fit.png")
+        else:
+            plt.show()
+        wait(save_figures)
             
     # Mapa de calor con hiperparametros n_estimators y max_depth
     if mostrar_heatmap:
         # cv-acc
-        cv_acc = np.array(best_clf.cv_results_["mean_test_score"])
+        cv_acc = np.array(RF_cv.cv_results_["mean_test_score"])
         data_dic = {"max_depth": max_depth, "n_estimators": n_estimators, 
                     "cv_acc": cv_acc}
         # Dataframe
@@ -442,4 +452,32 @@ def plot_RF_analysis(best_clf, mostrar_heatmap = True, mostrar_fit = True):
         df = pd.pivot_table(df, values = "cv_acc", index = ["max_depth"], 
                             columns = "n_estimators")
         sns.heatmap(df, linewidth=0.5, cmap = "RdBu")
+        plt.title("Mapa de calor - Hyperparam RF")
         plt.show()
+        
+        if save_figures:
+            plt.savefig(img_path + "RF_heatmap.png")
+        else:
+            plt.show()
+        wait(save_figures)
+        
+def plot_KNN_analysis(knn_clf, ks, save_figures = False, img_path = ""):
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
+    ax1.plot(ks, knn_clf.cv_results_["mean_test_score"], "-o")
+    ax1.set_xlabel("k")
+    ax1.set_ylabel("acc-cv")
+    ax2.plot(ks, knn_clf.cv_results_["mean_score_time"], "-or")
+    ax2.set_xlabel("k")
+    ax2.set_ylabel("tiempo (s)")
+    
+    plt.suptitle("Fit/tiempo - Hyperparam KNN")
+    fig.tight_layout()
+    
+    if save_figures:
+        plt.savefig(img_path + "KNN_knn.png")
+    else:
+        plt.show()
+    wait(save_figures)
+
+    
+    

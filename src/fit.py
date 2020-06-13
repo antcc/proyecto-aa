@@ -41,6 +41,9 @@ from sklearn.random_projection import SparseRandomProjection
 from sklearn.metrics import roc_auc_score
 from sklearn.utils.fixes import loguniform
 from sklearn.neural_network import MLPClassifier
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.metrics.pairwise import euclidean_distances, rbf_kernel
+from sklearn.base import clone
 
 import visualization as vs
 
@@ -364,6 +367,75 @@ def fit_dummy(X_train, X_test, y_train, y_test):
 
     return dummy_clf
 
+# 
+# IMPLEMENTACIÓN RBF-Network
+#
+    
+
+
+
+class RBFNetwork:
+    def __init__(self, alpha = 1.0, k = 8, r = None, batch_size = 100, 
+                 random_state = None):
+        self.k = k
+        self.batch_size = batch_size
+        self.random_state = random_state
+        self.centers = None
+        self.r = None
+        self.model = RidgeClassifier(alpha = alpha, 
+                                     random_state = random_state)
+        
+    def get_params(self, deep = True):
+        return {"k": self.k, "batch_size": self.batch_size,
+                "random_state": self.random_state, "centers": self.centers,
+                "r": self.r, "model": clone(self.model)}
+        
+    def set_params(self, **parameters):
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
+    
+    def choose_centers(self, X):
+        """
+            Usando k-means escoge los k centros de los datos.
+        """
+        kmeans = MiniBatchKMeans(n_clusters = self.k,
+                                 batch_size = self.batch_size,
+                                 random_state = self.random_state)
+        kmeans.fit(X)
+        self.centers = kmeans.cluster_centers_
+    
+    def choose_radius(self, X):
+        """
+            Escoge el radio para la transformación radial.
+        """
+        # "Diámetro" de los datos
+        R = np.max(euclidean_distances(X, X))
+        # Dimensión de los datos
+        d = X.shape[1]
+        self.r = R / self.k^(1 / d)    
+        
+    def transform_rbf(self, X):
+        """
+            Transforma los datos usando el kernel rbf.
+        """
+        return rbf_kernel(X, self.centers, 1 / (2 * self.r^2))
+        
+    def fit(self, X, y):
+        # Obtenemos los k-centros usando K-medias
+        self.choose_centers(X)
+        # Elegimos el radio para el kernel RBF
+        self.choose_radius(X)
+        # Transformamos los datos usando kernel RBF respecto los centros
+        Z = self.transform_rbf(X)
+        # Entrenamos el modelo lineal
+        self.model.fit(Z, y)
+        
+    def score(self, X, y):
+        # Transformamos datos kernel RBF
+        Z = self.transform_rbf(X)
+        # Score del modelo lineal
+        return self.model.score(Z, y)
 #
 # FUNCIÓN PRINCIPAL
 #
@@ -479,13 +551,14 @@ def main():
          "clf__max_depth": [5, 10, 15, 20, 30, 40, 50]}]
 
         best_clf_rf = fit(
-        X_train, X_test,
-        y_train, y_test,
-        clfs = clfs_rf,
-        selection_strategy = Selection.NONE,
-        model_class = Model.RF)
+            X_train, X_test,
+            y_train, y_test,
+            clfs = clfs_rf,
+            selection_strategy = Selection.NONE,
+            model_class = Model.RF)
 
-        vs.plot_RF_analysis(best_clf_rf)
+        vs.plot_RF_analysis(best_clf_rf, save_figures = SAVE_FIGURES,
+                            img_path = IMG_PATH)
 
     #
     # CLASIFICADOR ADABOOST
@@ -536,12 +609,14 @@ def main():
                                alpha = 1.0)]}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
+    """
     best_clf_mlp = fit(
         X_train, X_test,
         y_train, y_test,
         clfs = clfs_mlp,
         selection_strategy = Selection.PCA,
         model_class = Model.MLP)
+    """
 
     #
     # CLASIFICADOR KNN
@@ -551,7 +626,7 @@ def main():
 
     # Escogemos modelos de KNN
     clfs_knn = [
-        {"clf": [KNeighborsClassifier(random_state = SEED)],
+        {"clf": [KNeighborsClassifier()],
          "clf__n_neighbors": [1, 2, 3, 4, 5, 10]}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
@@ -561,6 +636,24 @@ def main():
         clfs = clfs_knn,
         selection_strategy = Selection.NONE,
         model_class = Model.KNN)"""
+    
+    KN_analysis = True
+    # Analisis KNN
+    if KN_analysis:
+        ks = [1, 3, 5, 10, 20, 25, 30, 40, 50, 100]
+        clfs_knn = [
+        {"clf": [KNeighborsClassifier()],
+         "clf__n_neighbors": ks}]
+        
+        best_clf_knn = fit(
+            X_train, X_test,
+            y_train, y_test,
+            clfs = clfs_knn,
+            selection_strategy = Selection.NONE,
+            model_class = Model.KNN)
+        
+        vs.plot_KNN_analysis(best_clf_knn, ks, save_figures = SAVE_FIGURES,
+                             img_path = IMG_PATH)
 
     #
     # CLASIFICADOR ALEATORIO
