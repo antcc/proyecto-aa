@@ -386,6 +386,74 @@ def plot_features(features, names, X, y, save_figures = False, img_path = ""):
         figname = "scatter_relevance",
         save_figures = save_figures,
         img_path = img_path)
+    
+    
+def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1, hyps2 = None, 
+                      hyp_name2 = None, test_time = False, 
+                      save_figures = False, img_path = ""):
+    two_hyp = hyps2 is not None
+    cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
+    cv_time = np.array(clf_cv.cv_results_["mean_fit_time"])
+    if test_time:
+        cv_time = np.array(clf_cv.cv_results["mean_score_time"])
+    if two_hyp:
+        new_shape = (len(hyps1), len(hyps2))
+        cv_acc = cv_acc.reshape(new_shape)
+        cv_time = cv_time.reshape(new_shape)
+        
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
+    plt.suptitle(clf_name)
+    
+    if two_hyp:
+        for i in range(len(hyps1)):
+            ax1.plot(hyps2, cv_acc[i], "-o", label = str(hyps1[i]))
+            ax2.plot(hyps2, cv_time[i], "-o", label = str(hyps1[i]))
+            ax1.set_xlabel(hyp_name2)
+            ax1.set_ylabel("cv-acc")
+            ax2.set_xlabel(hyp_name2)
+            ax2.set_ylabel("fit time (s)")
+        ax1.legend(title = hyp_name1, ncol = 2)
+        ax2.legend(title = hyp_name1, ncol = 2)
+        fig.tight_layout()
+        
+        if save_figures:
+            plt.savefig(img_path + clf_name + "_acc_time.png")
+        else:
+            plt.show()
+        wait(save_figures)
+        
+        cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
+        data_dic = {hyp_name1: np.repeat(hyps1, len(hyps2)), 
+                    hyp_name2: hyps2 * len(hyps1),
+                    "cv_acc": cv_acc}
+        # Dataframe
+        df = pd.DataFrame(data = data_dic)
+        # Transformación para heatmap
+        df = pd.pivot_table(df, values = "cv_acc", index = [hyp_name1],
+            columns = hyp_name2)
+        sns.heatmap(df, linewidth = 0.5, cmap = "RdBu")
+        plt.title(clf_name)
+
+        if save_figures:
+            plt.savefig(img_path + clf_name + "_heatmap.png")
+        else:
+            plt.show()
+        wait(save_figures)
+    else:
+        ax1.plot(hyps1, cv_acc, "-o")
+        ax2.plot(hyps1, cv_time, "-or")
+        ax1.set_xlabel(hyp_name1)
+        ax1.set_ylabel("cv-acc")
+        ax2.set_xlabel(hyp_name1)
+        ax2.set_ylabel("fit time (s)")
+        fig.tight_layout()
+        
+        if save_figures:
+            plt.savefig(img_path + clf_name + "_acc_time.png")
+        else:
+            plt.show()
+        wait(save_figures)
+        
 
 def plot_rf_analysis(rf_cv, show_heatmap = True, show_fit = True,
         save_figures = False, img_path = ""):
