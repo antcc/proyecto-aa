@@ -397,11 +397,20 @@ def plot_features(features, names, X, y,
         figname = "scatter_relevance",
         save_figures = save_figures,
         img_path = img_path)
-    
-    
-def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1, hyps2 = None, 
-                      hyp_name2 = None, test_time = False, 
-                      save_figures = False, img_path = ""):
+
+def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
+        x_logscale = False, hyps2 = None,
+        hyp_name2 = None, test_time = False,
+        save_figures = False, img_path = ""):
+    """Muestra una evaluación de 1 o 2 hiperparámetros de un modelo
+       durante cross-validation.
+         - clf_cv: resultado de CV del modelo.
+         - clf_name: nombre del clasificador.
+         - hyps1, hyp_name1: primer hiperparámetro y su nombre.
+         - hyps2, hyp_name2: segundo hiperparámetro y su nombre.
+         - x_logscale: si se muestra escala logarítmica en el eje X.
+         - test_time: si se mide el tiempo de evaluación en 'test'."""
+
     two_hyp = hyps2 is not None
     cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
     cv_time = np.array(clf_cv.cv_results_["mean_fit_time"])
@@ -411,10 +420,14 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1, hyps2 = None,
         new_shape = (len(hyps1), len(hyps2))
         cv_acc = cv_acc.reshape(new_shape)
         cv_time = cv_time.reshape(new_shape)
-        
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
-    plt.suptitle(clf_name)
-    
+    plt.suptitle("Análisis de " + clf_name)
+
+    if x_logscale:
+        ax1.set_xscale("log")
+        ax2.set_xscale("log")
+
     if two_hyp:
         for i in range(len(hyps1)):
             ax1.plot(hyps2, cv_acc[i], "-o", label = str(hyps1[i]))
@@ -426,15 +439,15 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1, hyps2 = None,
         ax1.legend(title = hyp_name1, ncol = 2)
         ax2.legend(title = hyp_name1, ncol = 2)
         fig.tight_layout()
-        
+
         if save_figures:
             plt.savefig(img_path + clf_name + "_acc_time.png")
         else:
             plt.show()
         wait(save_figures)
-        
+
         cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
-        data_dic = {hyp_name1: np.repeat(hyps1, len(hyps2)), 
+        data_dic = {hyp_name1: np.repeat(hyps1, len(hyps2)),
                     hyp_name2: hyps2 * len(hyps1),
                     "cv_acc": cv_acc}
         # Dataframe
@@ -458,104 +471,9 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1, hyps2 = None,
         ax2.set_xlabel(hyp_name1)
         ax2.set_ylabel("fit time (s)")
         fig.tight_layout()
-        
+
         if save_figures:
             plt.savefig(img_path + clf_name + "_acc_time.png")
         else:
             plt.show()
         wait(save_figures)
-        
-
-def plot_rf_analysis(rf_cv, show_heatmap = True, show_fit = True,
-        save_figures = False, img_path = ""):
-    """Imprime el mapa de calor/gráficos de los hiperparámetros de RandomForest.
-         - rf_cv: resultado de grid search en clasificadores RandomForest.
-         - show_heatmap: si mostrar el mapa de calor.
-         - show_fit: si mostrar los gráficos de ajuste/tiempo."""
-
-    params = rf_cv.cv_results_["params"]
-    max_depth = []
-    n_estimators = []
-    for param in params:
-        max_depth.append(param["clf__max_depth"])
-        n_estimators.append(param["clf__n_estimators"])
-
-    max_depth_uniq = np.unique(max_depth)
-    max_depth_size = max_depth_uniq.size
-    n_estimators_uniq = np.unique(n_estimators)
-    n_estimators_size = n_estimators_uniq.size
-
-    # Muestra acc-cv frente al hiperparámetro n_estimators
-    if show_fit:
-        # Datos
-        cv_acc = np.array(rf_cv.cv_results_["mean_test_score"])
-        cv_time = np.array(rf_cv.cv_results_["mean_fit_time"])
-        cv_acc = cv_acc.reshape((max_depth_size, n_estimators_size))
-        cv_time = cv_time.reshape((max_depth_size, n_estimators_size))
-
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
-        plt.suptitle("Acc/tiempo para hiperparámetros en RandomForest")
-
-        # Por cada valor de max_depth
-        for i in range(max_depth_size):
-            ax1.plot(n_estimators_uniq, cv_acc[i], "-o",
-                     label = str(max_depth_uniq[i]))
-            ax1.set_xlabel("n_estimators")
-            ax1.set_ylabel("acc-cv")
-            ax2.plot(n_estimators_uniq, cv_time[i], "-o",
-                     label = str(max_depth_uniq[i]))
-            ax2.set_xlabel("n_estimators")
-            ax2.set_ylabel("tiempo (s)")
-
-        ax1.legend(title = "max_depth", ncol = 2)
-        ax2.legend(title = "max_depth", ncol = 2)
-        fig.tight_layout()
-
-        if save_figures:
-            plt.savefig(img_path + "RF_fit.png")
-        else:
-            plt.show()
-        wait(save_figures)
-
-    # Mapa de calor con hiperparámetros n_estimators y max_depth
-    if show_heatmap:
-        # cv-acc
-        cv_acc = np.array(rf_cv.cv_results_["mean_test_score"])
-        data_dic = {"max_depth": max_depth, "n_estimators": n_estimators,
-                    "cv_acc": cv_acc}
-        # Dataframe
-        df = pd.DataFrame(data = data_dic)
-        # Transformación para heatmap
-        df = pd.pivot_table(df, values = "cv_acc", index = ["max_depth"],
-            columns = "n_estimators")
-        sns.heatmap(df, linewidth = 0.5, cmap = "RdBu")
-        plt.title("Mapa de calor para hiperparámetros en RandomForest")
-        plt.show()
-
-        if save_figures:
-            plt.savefig(img_path + "RF_heatmap.png")
-        else:
-            plt.show()
-        wait(save_figures)
-
-def plot_knn_analysis(knn_cv, ks, save_figures = False, img_path = ""):
-    """Imprime gráfico del hiperparámetros 'k' de KNN.
-         - knn_cv: resultado de grid search en clasificadores KNN.
-         - ks: lista de 'k' a probar."""
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
-    plt.suptitle("Acc/tiempo para Hiperparámetros en KNN")
-
-    ax1.plot(ks, knn_cv.cv_results_["mean_test_score"], "-o")
-    ax1.set_xlabel("k")
-    ax1.set_ylabel("acc-cv")
-    ax2.plot(ks, knn_cv.cv_results_["mean_score_time"], "-or")
-    ax2.set_xlabel("k")
-    ax2.set_ylabel("tiempo (s)")
-    fig.tight_layout()
-
-    if save_figures:
-        plt.savefig(img_path + "KNN_fit.png")
-    else:
-        plt.show()
-    wait(save_figures)
