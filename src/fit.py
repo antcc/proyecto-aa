@@ -23,11 +23,13 @@ import visualization as vs
 
 import numpy as np
 from timeit import default_timer
-from pandas import read_csv
+import warnings
 import os
 from enum import Enum
 from joblib import Memory
 from shutil import rmtree
+
+from pandas import read_csv
 
 from sklearn.dummy import DummyClassifier
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
@@ -47,6 +49,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics.pairwise import euclidean_distances, rbf_kernel
 from sklearn.utils.multiclass import unique_labels
+from sklearn.exceptions import ConvergenceWarning
 
 from scipy.stats import randint
 
@@ -189,14 +192,14 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
 SEED = 2020
 N_CLASSES = 2
 CLASS_THRESHOLD = 1400
-DO_MODEL_SELECTION = False
+DO_MODEL_SELECTION = True
 PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
-SHOW_ANALYSIS = False
+SHOW_ANALYSIS = True
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
-SHOW = Show.SOME
+SHOW = Show.NONE
 
 #
 # FUNCIONES AUXILIARES
@@ -444,6 +447,39 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     print("--- AJUSTE DE MODELOS LINEALES ---\n")
 
+    # Preanálisis de modelos lineales
+    if SHOW_ANALYSIS:
+        max_iter = 1000
+        clfs_lin = [
+            {"clf": [LogisticRegression(penalty = 'l2',
+                                        random_state = SEED,
+                                        max_iter = max_iter)],
+             "clf__C": np.logspace(-4, 4, 20)},
+            {"clf": [RidgeClassifier(random_state = SEED,
+                                     max_iter = max_iter)],
+             "clf__alpha": np.logspace(-4, 4, 20)},
+            {"clf": [SGDClassifier(random_state = SEED,
+                                   penalty = 'l2',
+                                   max_iter = max_iter)],
+             "clf__alpha": np.logspace(-8, 0, 20)}]
+
+        print("-> PREANÁLISIS: constante de regularización\n")
+        for clf in clfs_lin:
+            # Ignore warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category = ConvergenceWarning)
+
+            best_clf_lin = fit_cv(
+                X_val, y_val,
+                clfs = [clf],
+                model_class = Model.LINEAR,
+                selection_strategy = Selection.PCA,
+                show_cv = False)
+
+            name = clf['clf'][0].__class__.__name__
+            print("Mostrando resultado de preanálisis para {}...".format(name))
+            vs.plot_analysis(best_clf_lin, save_figures = SAVE_FIGURES, img_path = IMG_PATH)
+
     # Escogemos modelos lineales
     max_iter = 3000
     clfs_lin = [
@@ -462,11 +498,16 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
          "clf__alpha": np.logspace(-6, 0, 9)}]
 
     # Ajustamos el mejor modelo
-    """best_clfs.append(fit_cv(
-        X_train_full, y_train_full,
+    print("AJUSTE\n")
+    """best_clf_lin = fit_cv(
+        X_train, y_train,
         clfs = clfs_lin,
         model_class = Model.LINEAR,
-        selection_strategy = Selection.PCA).best_estimator_['clf'])"""
+        selection_strategy = Selection.PCA).best_estimator_['clf']"""
+
+    # Reentrenamos en el conjunto de entrenamiento completo
+    best_clf_lin.fit(X_train_full, y_train_full)
+    best_clfs.append(best_clf_lin)
 
     #
     # CLASIFICADOR RANDOM FOREST
@@ -474,14 +515,14 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     print("--- AJUSTE DE RANDOM FOREST ---\n")
 
-    # Preanálisis de Random Forest: n_estimators y max_depth
+    # Preanálisis de Random Forest
     if SHOW_ANALYSIS:
         clfs_rf = [
             {"clf": [RandomForestClassifier(random_state = SEED)],
-             "clf__n_estimators": [50, 100, 150, 200, 250, 300, 400, 500, 600],
+             "clf__n_estimators": [50, 100, 150, 200, 300, 400, 500, 600],
              "clf__max_depth": [5, 10, 15, 20, 30, 40, 50, 58]}]
 
-        print("PREANÁLISIS: n_estimators, max_depth\n")
+        print("-> PREANÁLISIS: n_estimators, max_depth\n")
         best_clf_rf = fit_cv(
             X_val, y_val,
             clfs = clfs_rf,
@@ -501,7 +542,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
                                         max_depth = 20)]}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    print("AJUSTE\n")
+    print("--> AJUSTE\n")
     best_clf_rf = fit_cv(
         X_train, y_train,
         clfs = clfs_rf,
@@ -845,6 +886,9 @@ def main():
 
     # Inicio de medición de tiempo
     start = default_timer()
+
+    # Ignorar warnings de convergencia
+    os.environ["PYTHONWARNINGS"] = "ignore::ConvergenceWarning"
 
     # Semilla aleatoria para reproducibilidad
     np.random.seed(SEED)
