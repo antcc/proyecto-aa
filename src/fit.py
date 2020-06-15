@@ -40,7 +40,6 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, \
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
-from sklearn.random_projection import SparseRandomProjection
 from sklearn.metrics import roc_auc_score
 from sklearn.utils.fixes import loguniform
 from sklearn.neural_network import MLPClassifier
@@ -66,8 +65,7 @@ class Selection(Enum):
     """Estrategia de selección de características."""
 
     PCA = 0
-    RANDOM_PROJECTION = 1
-    NONE = 2
+    NONE = 1
 
 class Model(Enum):
     """Clases de modelos para los ajustes."""
@@ -88,7 +86,7 @@ class multi_randint():
 
     def rvs(self, random_state = 42):
         return self.size * (randint.rvs(
-            self.low, self.high, size = 1, random_state = random_state),)
+            self.low, self.high, size = 1, random_state = random_state)[0],)
 
 class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
     """Implementación de un clasificador de red de funciones (gaussianas) de base radial.
@@ -151,7 +149,7 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
         # Elegimos el radio para el kernel RBF
         self._choose_radius(X)
 
-        # Transformamos los datos usando kernel RBF respecto los centros
+        # Transformamos los datos usando kernel RBF respecto de los centros
         Z = self._transform_rbf(X)
 
         # Entrenamos el modelo lineal resultante
@@ -164,21 +162,21 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
         return self
 
     def score(self, X, y = None):
-        # Transformamos datos kernel RBF
+        # Transformamos datos con kernel RBF
         Z = self._transform_rbf(X)
 
         # Score del modelo lineal
         return self.model.score(Z, y)
 
     def predict(self, X):
-        # Transformamos datos kernel RBF
+        # Transformamos datos con kernel RBF
         Z = self._transform_rbf(X)
 
         # Predicciones del modelo lineal
         return self.model.predict(Z)
 
     def decision_function(self, X):
-        # Transformamos datos kernel RBF
+        # Transformamos datos con kernel RBF
         Z = self._transform_rbf(X)
 
         # Función de decisión del modelo lineal
@@ -191,10 +189,11 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
 SEED = 2020
 N_CLASSES = 2
 CLASS_THRESHOLD = 1400
+DO_MODEL_SELECTION = True
 PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
-SHOW_CV_RESULTS = True
+SHOW_ANALYSIS = False
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
 SHOW = Show.NONE
@@ -204,10 +203,17 @@ SHOW = Show.NONE
 #
 
 def print_evaluation_metrics(clf, X_lst, y_lst, names):
-    """Imprime la evaluación de resultados en varios conjuntos de un clasificador.
+    """Imprime la evaluación de resultados en varios conjuntos de unos clasificadores.
+      - clf: lista de clasificadores.
       - X_lst: lista de matrices de características.
       - y_lst: lista de vectores de etiquetas.
       - names: lista de nombres de los conjuntos (training, test, ...)."""
+
+    # Mostramos número de variables
+    n_in = clf['clf'].n_features_in_
+    if n_in is None:
+        n_in = X_lst[0].shape[1]
+    print("Número de variables usadas: {}".format(n_in))
 
     for name, X, y in zip(names, X_lst, y_lst):
         # Mostramos accuracy
@@ -223,6 +229,8 @@ def print_evaluation_metrics(clf, X_lst, y_lst, names):
             continue
         print("* AUC en {}: {:.3f}%".format(
             name, 100.0 * roc_auc_score(y, y_pred)))
+
+    print("")
 
 def print_cv_metrics(results, n_top = 3):
     """Imprime un resumen de los resultados obtenidos en validación cruzada.
@@ -307,7 +315,6 @@ def preprocess_pipeline(model_class, selection_strategy):
        clase de modelos."""
 
     preproc = []
-    preproc_params = {}
 
     if model_class == Model.LINEAR:
         if selection_strategy == Selection.PCA:
@@ -317,15 +324,6 @@ def preprocess_pipeline(model_class, selection_strategy):
                 ("selection", PCA(0.95, random_state = SEED)),
                 ("poly", PolynomialFeatures(2, include_bias = False)),
                 ("standardize2", StandardScaler())]
-
-        elif selection_strategy == Selection.RANDOM_PROJECTION:
-            preproc = [
-                ("var", VarianceThreshold()),
-                ("standardize", StandardScaler()),
-                ("selection", SparseRandomProjection(39, random_state = SEED)),
-                ("poly", PolynomialFeatures(2, include_bias = False)),
-                ("standardize2", StandardScaler())]
-
         else:
             preproc = [
                 ("var", VarianceThreshold()),
@@ -338,204 +336,107 @@ def preprocess_pipeline(model_class, selection_strategy):
             ("var", VarianceThreshold()),
             ("standardize", StandardScaler())]
 
-    return preproc, preproc_params
+    return preproc
+
+def preprocess_graphs(X):
+    """Muestra matrices de correlación antes y después de cada uno de los tipos
+       de preprocesado empleados."""
+
+    pipe1 = Pipeline(preprocess_pipeline(Model.LINEAR, Selection.PCA))
+    title1 = "Correlaciones en entrenamiento con selección PCA y aumento polinómico"
+    pipe2 = Pipeline(preprocess_pipeline(Model.LINEAR, Selection.NONE))
+    title2 = "Correlaciones en entrenamiento sin selección y con aumento polinómico"
+    pipe3 = Pipeline(preprocess_pipeline(Model.RF, Selection.NONE))
+    title3 = "Correlaciones en entrenamiento sin selección ni aumento"
+
+    for pipe, title in zip([pipe1, pipe2, pipe3], [title1, title2, title3]):
+        X_pre = pipe.fit_transform(X)
+        vs.plot_corr_matrix(X, X_pre, title, SAVE_FIGURES, IMG_PATH)
 
 #
-# AJUSTE DE MODELOS
+# AJUSTE Y SELECCIÓN DE MODELOS
 #
 
-def fit_model(X_train, X_test, y_train, y_test,
-        clfs, model_class, selection_strategy = Selection.NONE,
-        randomized = False, cv_steps = 10, n_jobs = -1):
+def fit_cv(X_train, y_train, clfs,
+        model_class, selection_strategy = Selection.NONE,
+        randomized = False, cv_steps = 20,
+        n_jobs = -1, show_cv = True):
     """Ajuste de varios modelos de clasificación para un conjunto de datos, eligiendo
        por validación cruzada el mejor de ellos dentro de una clase concreta.
          - X_train, y_train: datos de entrenamiento.
-         - X_test, y_test: datos de test.
-        - clfs: lista de diccionarios con los modelos concretos para ajustar.
+         - clfs: lista de diccionarios con los modelos concretos para ajustar.
          - model_class: clase de modelos a ajustar (ver 'Model').
          - selection_strategy: estrategia de selección de características (ver 'Selection').
          - randomized: si es True, la búsqueda en grid se produce de forma aleatorizada.
          - cv_steps: si la búsqueda es aleatorizada, indica el nº de combinaciones a probar.
          - n_jobs: número de hebras para ejecuciones en paralelo.
-         """
+         - show_cv: controla si se muestra un ranking con los mejores resultados en CV."""
 
     # Construimos un pipeline de preprocesado + clasificación (placeholder) con caché
-    preproc, preproc_params = preprocess_pipeline(model_class, selection_strategy)
+    preproc = preprocess_pipeline(model_class, selection_strategy)
     memory = Memory(location = CACHEDIR, verbose = 0)
     pipe = Pipeline(preproc + [("clf", DummyClassifier())], memory = memory)
-    search_space = [{**preproc_params, **params} for params in clfs]
+
+    if show_cv:
+        print("Comparando modelos por validación cruzada... ", end = "", flush = True)
+        start = default_timer()
 
     # Buscamos los mejores modelos por CV
-    print("Comparando modelos por validación cruzada... ", end = "", flush = True)
-    start = default_timer()
     if randomized:
         best_clf = RandomizedSearchCV(
-            pipe, search_space,
+            pipe, clfs,
             scoring = 'accuracy',
             n_iter = cv_steps,
-            cv = 5, n_jobs = n_jobs)
+            cv = 5, n_jobs = n_jobs,
+            verbose = 1)
     else:
         best_clf = GridSearchCV(
-            pipe, search_space,
+            pipe, clfs,
             scoring = 'accuracy',
-            cv = 5, n_jobs = n_jobs)
-    best_clf.fit(X_train, y_train)
-    elapsed = default_timer() - start
-    print("Hecho.")
-    print("Tiempo para {} candidatos: {:.3f}min\n".format(
-        len(best_clf.cv_results_['params']), elapsed / 60.0))
+            cv = 5, n_jobs = n_jobs,
+            verbose = 1)
 
-    if SHOW_CV_RESULTS:
+    best_clf.fit(X_train, y_train)
+
+    if show_cv:
+        elapsed = default_timer() - start
+        print("Hecho.")
+        print("Tiempo para {} candidatos: {:.3f} min\n".format(
+            len(best_clf.cv_results_['params']), elapsed / 60.0))
+
         # Mostramos los resultados de CV
         n_top = 3
         print("Mostrando el top {} de mejores modelos en validación cruzada...\n"
             .format(n_top))
         print_cv_metrics(best_clf.cv_results_, n_top)
 
-    # Mostramos los resultados del mejor clasificador encontrado
-    model = best_clf.best_params_
-    print("--> Mejor clasificador encontrado <--")
-    print("Modelo: {}".format(model['clf']))
-    print("Mejores Parámetros: {}".format(
-        {k: model[k] for k in model.keys() if k != 'clf'}))
-    print("Número de variables usadas: {}".format(
-        best_clf.best_estimator_['clf'].n_features_in_))
-    print("* Accuracy en CV: {:.3f}%\n".format(100.0 * best_clf.best_score_))
-
-    if SHOW != Show.NONE:
-        vs.wait()
-
-        # Obtenemos los datos preprocesados para las gráficas
-        preproc_pipe = Pipeline(best_clf.best_estimator_.steps[:-1])
-        X_train_pre = preproc_pipe.transform(X_train)
-        X_test_pre = preproc_pipe.transform(X_test)
-
-        print("Mostrando matriz de correlación antes y después del preprocesado...")
-        vs.plot_corr_matrix(X_train, X_train_pre, SAVE_FIGURES, IMG_PATH)
-
-        # Matriz de confusión
-        print("Mostrando matriz de confusión en test...")
-        vs.confusion_matrix(best_clf, X_test, y_test, SAVE_FIGURES, IMG_PATH)
-
-        if selection_strategy == Selection.PCA:
-            # Predicciones para el conjunto de test
-            y_pred = best_clf.predict(X_test)
-
-            print("Mostrando proyección de las dos primeras componentes principales en test "
-                  "con etiquetas predichas...")
-            vs.scatter_pca(X_test_pre, y_pred, SAVE_FIGURES, IMG_PATH)
-
-        if SHOW == Show.ALL:
-            print("Calculando y mostrando curva de aprendizaje... ")
-            vs.plot_learning_curve(
-                best_clf,
-                X_train, y_train,
-                n_jobs = -2, cv = 5,
-                scoring = 'accuracy',
-                save_figures = SAVE_FIGURES,
-                img_path = IMG_PATH)
+        # Mostramos los resultados del mejor clasificador encontrado
+        model = best_clf.best_params_
+        print("--> Mejor clasificador encontrado <--")
+        print("Modelo: {}".format(model['clf']))
+        print("Mejores Parámetros: {}".format(
+            {k: model[k] for k in model.keys() if k != 'clf'}))
+        print("* Accuracy en CV: {:.3f}%\n".format(100.0 * best_clf.best_score_))
 
     # Limpiamos la caché
     memory.clear(warn = False)
 
     return best_clf
 
-def fit_dummy(X_train, X_test, y_train, y_test):
-    """Ajustamos un clasificador que estima una clase aleatoria teniendo en
-       cuenta la distribución de clases."""
-
-    # Elegimos un clasificador aleatorio
-    dummy_clf = DummyClassifier(strategy = 'stratified')
-
-    # Ajustamos el modelo
-    dummy_clf.fit(X_train, y_train)
-
-    # Mostramos los resultados
-    print("Número de variables usadas: {}".format(X_train.shape[1]))
-    print_evaluation_metrics(
-        dummy_clf,
-        [X_train, X_test],
-        [y_train, y_test],
-        ["training", "test"])
-    print("")
-
-    return dummy_clf
-
-#
-# EVALUACIÓN DE MODELOS
-#
-
-def evaluate(clfs, X_train, X_test, y_train, y_test):
-    """Evalúa una serie de modelos ya entrenados en unos datos concretos.
-         - clfs: clasificadores a evaluar.
+def fit_model_selection(X_train, X_val, y_train, y_val):
+    """Realiza selección de modelos entre una serie de candidatos, devolviendo
+       una lista con los mejores modelos encontrados, entrenados sobre el conjunto
+       completo de entrenamiento.
          - X_train, y_train: datos de entrenamiento.
-         - X_test, y_test: datos de test."""
+         - X_val, y_val: datos de validación.
 
-    for clf in clfs:
-        print("--> {} <--".format(clf))
-        print_evaluation_metrics(
-            clf,
-            [X_train, X_test],
-            [y_train, y_test],
-            ["training", "test"])
-        print("")
+       Para algunos modelos se realiza un preanálisis para determinar el espacio
+       de búsqueda de algunos parámetros críticos, utilizando para ello un
+       pequeño conjunto de validación."""
 
-#
-# FUNCIÓN PRINCIPAL
-#
-
-def main():
-    """Función principal. Ejecuta el proyecto paso a paso."""
-
-    # Inicio de medición de tiempo
-    start = default_timer()
-
-    # Semilla aleatoria para reproducibilidad
-    np.random.seed(SEED)
-
-    # Número de decimales fijo para salida de vectores
-    np.set_printoptions(formatter = {'float': lambda x: "{:0.3f}".format(x)})
-
-    print("------- PROYECTO FINAL: AJUSTE DE MODELOS DE CLASIFICACIÓN -------\n")
-
-    # Lista de los mejores modelos que vamos encontrando
+    X_train_full = np.vstack((X_train, X_val))
+    y_train_full = np.concatenate((y_train, y_val))
     best_clfs = []
-
-    #
-    # LECTURA DE DATOS
-    #
-
-    # Cargamos los datos de entrenamiento y test (división 70-30)
-    print("Cargando datos de entrenamiento y test... ", end = "", flush = True)
-    X, y, attr_names = read_data(PATH + DATASET_NAME)
-    X_train, X_val, X_test, y_train, y_val, y_test = \
-        split_data(X, y, val_size = 0.0, test_size = 0.3)
-    print("Hecho.\n")
-
-    #
-    # INSPECCIÓN DE LOS DATOS
-    #
-
-    if SHOW != Show.NONE:
-        print("--- VISUALIZACIÓN DE LOS DATOS ---\n")
-
-        # Mostramos distribución de clases en training y test
-        print("Mostrando gráfica de distribución de clases...")
-        vs.plot_class_distribution(y_train, y_test, N_CLASSES, SAVE_FIGURES, IMG_PATH)
-
-        # Visualizamos las variables más relevantes
-        print("Mostrando proyección de las dos variables más relevantes...")
-        # TODO: elegir las más relevantes por criterio RF
-        features = [24, 25]
-        vs.plot_features(
-            features, attr_names[features],
-            X_train, y_train,
-            SAVE_FIGURES, IMG_PATH)
-
-        if SHOW == Show.ALL:
-            # Visualizamos el conjunto de entrenamiento en 2 dimensiones
-            print("Mostrando proyección del conjunto de entrenamiento en dos dimensiones...")
-            vs.plot_tsne(X_train, y_train, SAVE_FIGURES, IMG_PATH)
 
     #
     # CLASIFICADOR LINEAL
@@ -558,15 +459,14 @@ def main():
                                max_iter = max_iter,
                                eta0 = 0.1)],
          "clf__learning_rate": ['optimal', 'invscaling', 'adaptive'],
-         "clf__alpha": np.logspace(-6, 4, 9)}]
+         "clf__alpha": np.logspace(-6, 0, 9)}]
 
     # Ajustamos el mejor modelo
-    """best_clfs.append(fit_model(
-        X_train, X_test,
-        y_train, y_test,
+    """best_clfs.append(fit_cv(
+        X_train_full, y_train_full,
         clfs = clfs_lin,
         model_class = Model.LINEAR,
-        selection_strategy = Selection.PCA))"""
+        selection_strategy = Selection.PCA).best_estimator_['clf'])"""
 
     #
     # CLASIFICADOR RANDOM FOREST
@@ -574,65 +474,69 @@ def main():
 
     print("--- AJUSTE DE RANDOM FOREST ---\n")
 
-    # Escogemos modelos de Random Forest
-    clfs_rf = [
-        {"clf": [RandomForestClassifier(random_state = SEED)],
-         "clf__n_estimators": [100, 200, 400],
-         "clf__max_depth": [None, 15, 29],
-         "clf__ccp_alpha": loguniform(1e-5, 1e-2)}]
-
-    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    """best_clfs.append(fit_model(
-        X_train, X_test,
-        y_train, y_test,
-        clfs = clfs_rf,
-        selection_strategy = Selection.NONE,
-        model_class = Model.RF,
-        randomized = True,
-        cv_steps = 20))"""
-
-    # Análisis de rendimiento de Random Forest
-    # TODO: Usar el best_clf de arriba?
-    RF_analysis = False
-    if RF_analysis:
+    # Preanálisis de Random Forest: n_estimators y max_depth
+    if SHOW_ANALYSIS:
         clfs_rf = [
             {"clf": [RandomForestClassifier(random_state = SEED)],
-             "clf__n_estimators": [50, 75, 100, 150, 200, 250, 300, 400, 500, 600],
-             "clf__max_depth": [5, 10, 15, 20, 30, 40, 50]}]
+             "clf__n_estimators": [50, 100, 150, 200, 250, 300, 400, 500, 600],
+             "clf__max_depth": [5, 10, 15, 20, 30, 40, 50, 58]}]
 
-        best_clf_rf = fit_model(
-            X_train, X_test,
-            y_train, y_test,
+        print("PREANÁLISIS: n_estimators, max_depth\n")
+        best_clf_rf = fit_cv(
+            X_val, y_val,
             clfs = clfs_rf,
-            selection_strategy = Selection.NONE,
-            model_class = Model.RF)
+            model_class = Model.RF,
+            show_cv = False)
 
-        vs.plot_RF_analysis(best_clf_rf, save_figures = SAVE_FIGURES,
-                            img_path = IMG_PATH)
+        vs.plot_rf_analysis(best_clf_rf, save_figures = SAVE_FIGURES, img_path = IMG_PATH)
+
+    # Escogemos modelos de Random Forest
+    clfs_rf = [
+        {"clf": [RandomForestClassifier(random_state = SEED,
+                                        n_estimators = 400,
+                                        max_depth = 20)],
+         "clf__ccp_alpha": loguniform(1e-4, 1e-2)},
+        {"clf": [RandomForestClassifier(random_state = SEED,
+                                        n_estimators = 400,
+                                        max_depth = 20)]}]
+
+    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
+    print("AJUSTE\n")
+    best_clf_rf = fit_cv(
+        X_train, y_train,
+        clfs = clfs_rf,
+        model_class = Model.RF,
+        randomized = True,
+        cv_steps = 20).best_estimator_['clf']
+
+    # Reentrenamos en el conjunto de entrenamiento completo
+    best_clf_rf.fit(X_train_full, y_train_full)
+    best_clfs.append(best_clf_rf)
+
+    print("Indices: {}".format(np.argsort(best_clf_rf.feature_importances_)[::-1]))
 
     #
-    # CLASIFICADOR ADABOOST
+    # CLASIFICADOR BOOSTING
     #
 
-    print("--- AJUSTE DE ADABOOST ---\n")
+    print("--- AJUSTE DE MODELOS DE BOOSTING ---\n")
 
-    # Escogemos modelos de AdaBoost
+    # Escogemos modelos de Boosting
     clfs_boost = [
         {"clf": [AdaBoostClassifier(random_state = SEED)],
-         "clf__n_estimators": [100, 200, 400],
-         "clf__learning_rate": [0.5, 1.0, 2.0]},
+         "clf__n_estimators": [150, 250, 400],
+         "clf__learning_rate": [0.1, 1.0, 10.0]},
         {"clf": [GradientBoostingClassifier(random_state = SEED)],
-         "clf__n_estimators": [100, 200, 400],
+         "clf__n_estimators": [200, 400],
          "clf__learning_rate": [0.01, 0.1, 1.0],
-         "clf__subsample": [1.0, 0.75, 0.5],
-         "clf__max_depth": [1, 2, 3, 4, 5]}]
+         "clf__subsample": [1.0, 0.85, 0.7],
+         "clf__max_depth": [2, 3, 4]}]
 
-    # Ajustamos el mejor modelo eligiendo 10 candidatos de forma aleatoria
-    """best_clfs.append(fit_model(
-        X_train, X_test,
-        y_train, y_test,
+    # Ajustamos el mejor modelo
+    best_clfs.append(fit_cv(
+        X_train_full, y_train_full,
         clfs = clfs_boost,
-        model_class = Model.BOOST))"""
+        model_class = Model.BOOST).best_estimator_['clf'])
 
     #
     # CLASIFICADOR MLP
@@ -640,24 +544,24 @@ def main():
 
     print("--- AJUSTE DE MLP ---\n")
 
+    # Escogemos modelos de MLP
     clfs_mlp = [
         {"clf": [MLPClassifier(random_state = SEED,
                                learning_rate_init = 0.1,
                                solver = 'sgd',
                                learning_rate = 'adaptive',
                                activation = 'relu',
-                               tol = 1e-3,
-                               alpha = 1.0)],
-         "clf__hidden_layer_sizes": multi_randint(50, 101, 3)}]
+                               tol = 1e-3)],
+         "clf__hidden_layer_sizes": multi_randint(50, 101, 3),
+         "clf__alpha": loguniform(1e-2, 1e2)}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    """best_clfs.append(fit_model(
-        X_train, X_test,
-        y_train, y_test,
+    best_clfs.append(fit_cv(
+        X_train_full, y_train_full,
         clfs = clfs_mlp,
         model_class = Model.MLP,
         randomized = True,
-        cv_steps = 20))"""
+        cv_steps = 20).best_estimator_['clf'])
 
     #
     # CLASIFICADOR KNN
@@ -665,54 +569,58 @@ def main():
 
     print("--- AJUSTE DE KNN ---\n")
 
-    # Escogemos modelos de KNN
-    clfs_knn = [
-        {"clf": [KNeighborsClassifier()],
-         "clf__n_neighbors": [1, 2, 3, 4, 5, 10]}]
-
-    KN_analysis = False
-    # Analisis KNN
-    if KN_analysis:
+    # Preanálisis de KNN: n_neighbors
+    if SHOW_ANALYSIS:
         ks = [1, 3, 5, 10, 20, 25, 30, 40, 50, 100]
         clfs_knn = [
             {"clf": [KNeighborsClassifier()],
              "clf__n_neighbors": ks}]
 
-        best_clf_knn = fit_model(
-            X_train, X_test,
-            y_train, y_test,
+        print("PREANÁLISIS: n_neighbors\n")
+        best_clf_knn = fit_cv(
+            X_val, y_val,
             clfs = clfs_knn,
-            selection_strategy = Selection.NONE,
-            model_class = Model.KNN)
+            model_class = Model.SIMILARITY,
+            show_cv = False)
 
-        vs.plot_KNN_analysis(best_clf_knn, ks, save_figures = SAVE_FIGURES,
-                             img_path = IMG_PATH)
+        vs.plot_knn_analysis(best_clf_knn, ks,
+            save_figures = SAVE_FIGURES,
+            img_path = IMG_PATH)
 
-    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    """best_clfs.append(fit_model(
-        X_train, X_test,
-        y_train, y_test,
+    # Escogemos modelos de KNN
+    clfs_knn = [
+        {"clf": [KNeighborsClassifier()],
+         "clf__n_neighbors": [10, 50, 100],
+         "clf__weights": ['uniform', 'distance']}]
+
+    # Ajustamos el mejor modelo
+    print("AJUSTE\n")
+    best_clf_knn = fit_cv(
+        X_train, y_train,
         clfs = clfs_knn,
-        selection_strategy = Selection.NONE,
-        model_class = Model.KNN))"""
+        model_class = Model.SIMILARITY).best_estimator_['clf']
+
+    # Reentrenamos en el conjunto de entrenamiento completo
+    best_clf_knn.fit(X_train_full, y_train_full)
+    best_clfs.append(best_clf_knn)
 
     #
     # CLASIFICADOR RBF
     #
 
-    print("--- AJUSTE DE FUNCIONES DE BASE RADIAL ---\n")
+    print("--- AJUSTE DE REDES DE FUNCIONES DE BASE RADIAL ---\n")
 
     clfs_rbf = [
-        {"clf": [RBFNetworkClassifier(random_state = SEED, alpha = 1e-10)],
+        {"clf": [RBFNetworkClassifier(random_state = SEED,
+                                      alpha = 1e-10)],
          "clf__k": [50, 100, 200]}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    """best_clfs.append(fit_model(
-        X_train, X_test,
-        y_train, y_test,
+    best_clfs.append(fit_cv(
+        X_train_full, y_train_full,
         clfs = clfs_rbf,
         model_class = Model.SIMILARITY,
-        n_jobs = 1))"""
+        n_jobs = 1).best_estimator_['clf'])
 
     #
     # CLASIFICADOR ALEATORIO
@@ -720,7 +628,278 @@ def main():
 
     print("--- AJUSTE DE MODELO ALEATORIO ---\n")
 
-    best_clfs.append(fit_dummy(X_train, X_test, y_train, y_test))
+    # Ajustamos un clasificador aleatorio
+    dummy_clf = Pipeline([("clf", DummyClassifier(strategy = 'stratified'))])
+    dummy_clf.fit(X_train_full, y_train_full)
+    best_clfs.append(dummy_clf)
+
+    return best_clfs
+
+def fit_models(X_train, y_train):
+    """Ajusta una serie de modelos prefijados a unos datos de entrenamiento.
+       Estos modelos son los que se consideran los mejores dentro de cada
+       una de sus clases.
+         - X_train, y_train: datos de entrenamiento."""
+
+    clfs = []
+
+    #
+    # CLASIFICADOR LINEAL
+    #
+
+    print("--- AJUSTE DE MODELO LINEAL ---\n")
+
+    preproc = preprocess_pipeline(Model.LINEAR, Selection.PCA)
+    clf_lin = Pipeline(preproc
+        + [("clf", SGDClassifier(random_state = SEED,
+                                 learning_rate = 'adaptive',
+                                 eta0 = 0.1,
+                                 alpha = 0.0003))])
+
+    print("Entrenando clasificador lineal... ", end = "", flush = True)
+    start = default_timer()
+    clf_lin.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_lin)
+
+    #
+    # CLASIFICADOR RANDOM FOREST
+    #
+
+    print("--- AJUSTE DE RANDOM FOREST ---\n")
+
+    preproc = preprocess_pipeline(Model.RF, Selection.NONE)
+    clf_rf = Pipeline(preproc
+        + [("clf", RandomForestClassifier(random_state = SEED,
+                                          n_estimators = 400,
+                                          max_depth = 15,
+                                          ccp_alpha = 0.0001,
+                                          n_jobs = -1))])
+
+    print("Entrenando clasificador Random Forest... ", end = "", flush = True)
+    start = default_timer()
+    clf_rf.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_rf)
+
+    #
+    # CLASIFICADOR BOOSTING
+    #
+
+    print("--- AJUSTE DE MODELO DE BOOSTING ---\n")
+
+    preproc = preprocess_pipeline(Model.BOOST, Selection.NONE)
+    clf_gb = Pipeline(preproc
+        + [("clf", GradientBoostingClassifier(random_state = SEED,
+                                              n_estimators = 400,
+                                              learning_rate = 0.1,
+                                              max_depth = 4,
+                                              subsample = 0.75))])
+
+    print("Entrenando clasificador Gradient Boosting... ", end = "", flush = True)
+    start = default_timer()
+    clf_gb.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_gb)
+
+    #
+    # CLASIFICADOR MLP
+    #
+
+    print("--- AJUSTE DE MODELO MLP ---\n")
+
+    preproc = preprocess_pipeline(Model.MLP, Selection.NONE)
+    clf_mlp = Pipeline(preproc
+        + [("clf", MLPClassifier(random_state = SEED,
+                                 hidden_layer_sizes = (75, 75, 75),
+                                 learning_rate_init = 0.1,
+                                 solver = 'sgd',
+                                 learning_rate = 'adaptive',
+                                 activation = 'relu',
+                                 tol = 1e-3,
+                                 alpha = 1.0))])
+
+    print("Entrenando clasificador MLP... ", end = "", flush = True)
+    start = default_timer()
+    clf_mlp.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_mlp)
+
+    #
+    # CLASIFICADOR KNN
+    #
+
+    print("--- AJUSTE DE MODELO KNN ---\n")
+
+    preproc = preprocess_pipeline(Model.SIMILARITY, Selection.NONE)
+    clf_knn = Pipeline(preproc
+        + [("clf", KNeighborsClassifier(n_neighbors = 50,
+                                        weights = 'uniform',
+                                        n_jobs = -1))])
+
+    print("Entrenando clasificador KNN... ", end = "", flush = True)
+    start = default_timer()
+    clf_knn.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_knn)
+
+    #
+    # CLASIFICADOR RBF
+    #
+
+    print("--- AJUSTE DE MODELO DE REDES DE FUNCIONES DE BASE RADIAL ---\n")
+
+    preproc = preprocess_pipeline(Model.SIMILARITY, Selection.NONE)
+    clf_rbf = Pipeline(preproc
+        + [("clf", RBFNetworkClassifier(random_state = SEED,
+                                        k = 200,
+                                        alpha = 1e-10))])
+
+    print("Entrenando clasificador RBF... ", end = "", flush = True)
+    start = default_timer()
+    clf_rbf.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_rbf)
+
+    #
+    # CLASIFICADOR ALEATORIO
+    #
+
+    print("--- AJUSTE DE MODELO ALEATORIO ---\n")
+
+    clf_dummy = Pipeline([("clf", DummyClassifier(strategy = 'stratified'))])
+
+    print("Entrenando clasificador aleatorio... ", end = "", flush = True)
+    start = default_timer()
+    clf_dummy.fit(X_train, y_train)
+    elapsed = default_timer() - start
+    print("Hecho.")
+    print("Tiempo de entrenamiento: {:.3f} min\n".format(elapsed / 60.0))
+    clfs.append(clf_dummy)
+
+    #
+    # CURVAS DE APRENDIZAJE
+    #
+
+    if SHOW == Show.ALL:
+        print("Calculando y mostrando curvas de aprendizaje...")
+        for clf in clfs:
+            vs.plot_learning_curve(
+                clf,
+                X_train, y_train,
+                n_jobs = -1, cv = 5,
+                scoring = 'accuracy',
+                title = clf['clf'].__class__.__name__,
+                save_figures = SAVE_FIGURES,
+                img_path = IMG_PATH)
+
+    return clfs
+
+#
+# COMPARACIÓN DE MODELOS
+#
+
+def compare(clfs, X_train, X_test, y_train, y_test):
+    """Compara una serie de modelos ya entrenados en unos datos concretos,
+       añadiendo a la comparación un clasificador aleatorio.
+         - clfs: clasificadores a comparar.
+         - X_train, y_train: datos de entrenamiento.
+         - X_test, y_test: datos de test."""
+
+    for clf in clfs:
+        print("--> {} <--".format(clf['clf']))
+        print_evaluation_metrics(
+            clf,
+            [X_train, X_test],
+            [y_train, y_test],
+            ["training", "test"])
+
+        if SHOW != Show.NONE:
+            # Matriz de confusión
+            print("Mostrando matriz de confusión en test para "
+                + clf['clf'].__class__.__name__ + "...")
+            vs.confusion_matrix(clf, X_test, y_test, SAVE_FIGURES, IMG_PATH)
+
+#
+# FUNCIÓN PRINCIPAL
+#
+
+def main():
+    """Función principal. Ejecuta el proyecto paso a paso.
+
+       NOTA: Por motivos de unificar el código, todos los clasificadores
+             considerados son un Pipeline, cuyo último paso es el
+             clasificador en sí, con nombre 'clf'."""
+
+    # Inicio de medición de tiempo
+    start = default_timer()
+
+    # Semilla aleatoria para reproducibilidad
+    np.random.seed(SEED)
+
+    # Número de decimales fijo para salida de vectores
+    np.set_printoptions(formatter = {'float': lambda x: "{:0.3f}".format(x)})
+
+    print("------- PROYECTO FINAL: AJUSTE DE MODELOS DE CLASIFICACIÓN -------\n")
+
+    #
+    # LECTURA DE DATOS
+    #
+
+    # Cargamos los datos de entrenamiento, validación y test (división 50-20-30)
+    print("Leyendo datos de " + DATASET_NAME + "... ", end = "", flush = True)
+    X, y, attr_names = read_data(PATH + DATASET_NAME)
+    X_train, X_val, X_test, y_train, y_val, y_test = \
+        split_data(X, y, val_size = 0.2, test_size = 0.3)
+    X_train_full = np.vstack((X_train, X_val))
+    y_train_full = np.concatenate((y_train, y_val))
+    print("Hecho.\n")
+
+    #
+    # INSPECCIÓN DE LOS DATOS
+    #
+
+    if SHOW != Show.NONE:
+        print("--- VISUALIZACIÓN DE LOS DATOS ---\n")
+
+        # Mostramos distribución de clases en training y test
+        print("Mostrando gráfica de distribución de clases...")
+        vs.plot_class_distribution(y_train_full, y_test, N_CLASSES, SAVE_FIGURES, IMG_PATH)
+
+        # Visualizamos las variables más relevantes
+        print("Mostrando proyección de las dos variables más relevantes...")
+        # TODO: elegir las más relevantes por criterio RF
+        features = [24, 25]
+        vs.plot_features(
+            features, attr_names[features],
+            X_train_full, y_train_full,
+            SAVE_FIGURES, IMG_PATH)
+
+        # Mostramos gráficas de preprocesado
+        print("Mostrando matrices de correlación antes y después de cada preprocesado...")
+        preprocess_graphs(X_train_full)
+
+        if SHOW == Show.ALL:
+            # Visualizamos el conjunto de entrenamiento en 2 dimensiones
+            print("Mostrando proyección del conjunto de entrenamiento en dos dimensiones...")
+            vs.plot_tsne(X_train_full, y_train_full, SAVE_FIGURES, IMG_PATH)
+
+    if DO_MODEL_SELECTION:
+        clfs = fit_model_selection(X_train, X_val, y_train, y_val)
+    else:
+        clfs = fit_models(X_train_full, y_train_full)
 
     #
     # COMPARACIÓN DE MODELOS
@@ -728,11 +907,15 @@ def main():
 
     print("--- COMPARACIÓN DE LOS MEJORES MODELOS ---\n")
 
-    evaluate(best_clfs, X_train, X_test, y_train, y_test)
+    compare(clfs, X_train_full, X_test, y_train_full, y_test)
+
+    #
+    # ESTADÍSTICAS Y LIMPIEZA
+    #
 
     # Imprimimos tiempo total de ejecución
     elapsed = default_timer() - start
-    print("Tiempo total de ejecución: {:.3f}min".format(elapsed / 60.0))
+    print("Tiempo total de ejecución: {:.3f} min".format(elapsed / 60.0))
 
     # Eliminamos directorio de caché
     if os.path.isdir(CACHEDIR):

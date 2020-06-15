@@ -2,6 +2,9 @@
 - Eliminar TODO.md, NOTAS.md y RESULTS.md cuando terminemos.
 - Quitar verbose = 1 de GSearch y RSearch
 - Cambiar ruta de lectura de datos a "datos/"
+- Cambiar show_cv = False por defecto
+- Poner puntos de parada
+- DO_MODEL_SELECTION = False
 - Quitar caché?
 - Comentar código y revisar estilo
 
