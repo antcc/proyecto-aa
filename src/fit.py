@@ -446,7 +446,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
     print("--- AJUSTE DE MODELOS LINEALES ---\n")
 
     # Preanálisis de modelos lineales
-    """if SHOW_ANALYSIS:
+    if SHOW_ANALYSIS:
         max_iter = 1000
         clfs_lin = [
             {"clf": [LogisticRegression(penalty = 'l2',
@@ -500,7 +500,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
          "clf__alpha": np.logspace(-6, 0, 9)}]
 
     # Ajustamos el mejor modelo
-    print("-> AJUSTE\n")
+    """print("-> AJUSTE\n")
     best_clf_lin = fit_cv(
         X_train, y_train,
         clfs = clfs_lin,
@@ -603,8 +603,8 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
          "clf__max_depth": [2, 3, 4]}]
 
     # Ajustamos el mejor modelo
-    print("-> AJUSTE\n")
-    """best_clf_boost = fit_cv(
+    """print("-> AJUSTE\n")
+    best_clf_boost = fit_cv(
         X_train, y_train,
         clfs = clfs_boost,
         model_class = Model.BOOST).best_estimator_['clf']
@@ -619,6 +619,34 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     print("--- AJUSTE DE MLP ---\n")
 
+    # Preanálisis de MLP
+    if SHOW_ANALYSIS:
+        clfs_mlp = [
+            {"clf": [MLPClassifier(random_state = SEED,
+                               learning_rate_init = 0.01,
+                               solver = 'sgd',
+                               learning_rate = 'adaptive',
+                               activation = 'relu',
+                               tol = 1e-3)],
+             "clf__hidden_layer_sizes": multi_randint(50, 101, 3)}]
+
+        print("-> PREANÁLISIS: número de neuronas por capa\n")
+        best_clf_mlp = fit_cv(
+            X_val, y_val,
+            clfs = clfs_mlp,
+            model_class = Model.MLP,
+            randomized = True,
+            cv_steps = 30,
+            show_cv = False)
+
+        params = best_clf_mlp.cv_results_['params']
+        layers = [d['clf__hidden_layer_sizes'][0] for d in params]
+
+        print("Mostrando resultado de preanálisis para MLP...")
+        vs.plot_analysis(best_clf_mlp, "MLP",
+            layers, "hidden_layer_sizes",
+            save_figures = SAVE_FIGURES, img_path = IMG_PATH)
+
     # Escogemos modelos de MLP
     clfs_mlp = [
         {"clf": [MLPClassifier(random_state = SEED,
@@ -631,12 +659,17 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
          "clf__alpha": loguniform(1e-2, 1e2)}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    best_clfs.append(fit_cv(
-        X_train_full, y_train_full,
+    """print("-> AJUSTE\n")
+    best_clf_mlp = fit_cv(
+        X_train, y_train,
         clfs = clfs_mlp,
         model_class = Model.MLP,
         randomized = True,
-        cv_steps = 20).best_estimator_['clf'])
+        cv_steps = 20).best_estimator_['clf']
+
+    # Reentrenamos en el conjunto de entrenamiento completo
+    best_clf_mlp.fit(X_train_full, y_train_full)
+    best_clfs.append(best_clf_mlp)"""
 
     #
     # CLASIFICADOR KNN
@@ -644,23 +677,24 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     print("--- AJUSTE DE KNN ---\n")
 
-    # Preanálisis de KNN: n_neighbors
+    # Preanálisis de KNN
     if SHOW_ANALYSIS:
-        ks = [1, 3, 5, 10, 20, 25, 30, 40, 50, 100]
+        ks = [1, 3, 5, 10, 20, 25, 30, 40, 50, 100, 200]
         clfs_knn = [
             {"clf": [KNeighborsClassifier()],
              "clf__n_neighbors": ks}]
 
-        print("PREANÁLISIS: n_neighbors\n")
+        print("-> PREANÁLISIS: valor de k\n")
         best_clf_knn = fit_cv(
             X_val, y_val,
             clfs = clfs_knn,
             model_class = Model.SIMILARITY,
             show_cv = False)
 
-        vs.plot_knn_analysis(best_clf_knn, ks,
-            save_figures = SAVE_FIGURES,
-            img_path = IMG_PATH)
+        print("Mostrando resultado de preanálisis para KNN...")
+        vs.plot_analysis(best_clf_knn, "KNN",
+            ks, "k", test_time = True,
+            save_figures = SAVE_FIGURES, img_path = IMG_PATH)
 
     # Escogemos modelos de KNN
     clfs_knn = [
@@ -669,7 +703,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
          "clf__weights": ['uniform', 'distance']}]
 
     # Ajustamos el mejor modelo
-    print("AJUSTE\n")
+    """print("-> AJUSTE\n")
     best_clf_knn = fit_cv(
         X_train, y_train,
         clfs = clfs_knn,
@@ -677,7 +711,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_knn.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_knn)
+    best_clfs.append(best_clf_knn)"""
 
     #
     # CLASIFICADOR RBF
@@ -685,17 +719,41 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     print("--- AJUSTE DE REDES DE FUNCIONES DE BASE RADIAL ---\n")
 
-    clfs_rbf = [
-        {"clf": [RBFNetworkClassifier(random_state = SEED,
-                                      alpha = 1e-10)],
-         "clf__k": [50, 100, 200]}]
+    # Preanálisis de modelos de RBF
+    if SHOW_ANALYSIS:
+        ks = [10, 25, 50, 100, 150, 200]
+        clfs_rbf = [
+            {"clf": [RBFNetworkClassifier(random_state = SEED)],
+             "clf__k": ks}]
 
-    # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    best_clfs.append(fit_cv(
-        X_train_full, y_train_full,
+        print("-> PREANÁLISIS: valor de k\n")
+        best_clf_rbf = fit_cv(
+            X_val, y_val,
+            clfs = clfs_rbf,
+            model_class = Model.SIMILARITY,
+            n_jobs = 2,
+            show_cv = False)
+
+        print("Mostrando resultado de preanálisis para RBF...")
+        vs.plot_analysis(best_clf_rbf, "RBF",
+            ks, "k", save_figures = SAVE_FIGURES,
+            img_path = IMG_PATH)
+
+    clfs_rbf = [
+        {"clf": [RBFNetworkClassifier(random_state = SEED)],
+         "clf__k": [50, 100, 200],
+         "clf__alpha": np.logspace(-10, -5, 5)}]
+
+    # Ajustamos el mejor modelo
+    """best_clf_rbf = fit_cv(
+        X_train, y_train,
         clfs = clfs_rbf,
         model_class = Model.SIMILARITY,
-        n_jobs = 1).best_estimator_['clf'])
+        n_jobs = 1).best_estimator_['clf']
+
+    # Reentrenamos en el conjunto de entrenamiento completo
+    best_clf_rbf.fit(X_train_full, y_train_full)
+    best_clfs.append(best_clf_rbf)"""
 
     #
     # CLASIFICADOR ALEATORIO

@@ -399,8 +399,8 @@ def plot_features(features, names, X, y,
         img_path = img_path)
 
 def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
-        x_logscale = False, hyps2 = None,
-        hyp_name2 = None, test_time = False,
+        hyps2 = None, hyp_name2 = None,
+        x_logscale = False, test_time = False,
         save_figures = False, img_path = ""):
     """Muestra una evaluación de 1 o 2 hiperparámetros de un modelo
        durante cross-validation.
