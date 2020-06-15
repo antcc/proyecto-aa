@@ -39,7 +39,8 @@ def wait(save_figures = False):
         input("(Pulsa [Enter] para continuar...)\n")
 
 def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
-                 figname = "", cmap = cm.tab10, save_figures = False, img_path = ""):
+        xlim = None, ylim = None, figname = "", cmap = cm.tab10,
+        save_figures = False, img_path = ""):
     """Muestra un scatter plot de puntos (opcionalmente) etiquetados por clases,
        eventualmente junto a varias rectas de separación.
          - X: matriz de características de la forma [x1, x2].
@@ -49,6 +50,8 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
            (se asumen centradas).
          - labels: etiquetas de las rectas.
          - title: título del plot.
+         - xlim = [xmin, xmax]: límites del plot en el eje X.
+         - ylim = [ymin, ymax]: límites del plot en el eje Y.
          - figname: nombre para guardar la gráfica en fichero.
          - cmap: mapa de colores."""
 
@@ -60,12 +63,14 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
         plt.title(title)
 
     # Establecemos los límites del plot
-    xmin, xmax = np.min(X[:, 0]), np.max(X[:, 0])
-    ymin, ymax = np.min(X[:, 1]), np.max(X[:, 1])
-    scale_x = (xmax - xmin) * 0.01
-    scale_y = (ymax - ymin) * 0.01
-    plt.xlim(xmin - scale_x, xmax + scale_x)
-    plt.ylim(ymin - scale_y, ymax + scale_y)
+    if xlim is None:
+        xlim = [np.min(X[:, 0]), np.max(X[:, 0])]
+    if ylim is None:
+        ylim = [np.min(X[:, 1]), np.max(X[:, 1])]
+    scale_x = (xlim[1] - xlim[0]) * 0.01
+    scale_y = (ylim[1] - ylim[0]) * 0.01
+    plt.xlim(xlim[0] - scale_x, xlim[1] + scale_x)
+    plt.ylim(ylim[0] - scale_y, ylim[1] + scale_y)
 
     # Mostramos scatter plot con leyenda
     scatter = plt.scatter(
@@ -83,7 +88,7 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
         colors = cm.tab20b.colors
 
         for w, l, c in zip(ws, labels, colors):
-            x = np.array([xmin - scale_x, xmax + scale_x])
+            x = np.array([xlim[0] - scale_x, xlim[1] + scale_x])
             plt.plot(
                 x, (-w[0] * x) / w[1],
                 label = l, lw = 2, ls = "--",
@@ -372,17 +377,23 @@ def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, im
         plt.show()
     wait(save_figures)
 
-def plot_features(features, names, X, y, save_figures = False, img_path = ""):
+def plot_features(features, names, X, y,
+        xlim = None, ylim = None, save_figures = False, img_path = ""):
     """Muestra la proyección de dos características con sus etiquetas correspondientes.
          - features: vector de índices de dos características.
          - names: nombres de las características.
          - X: matriz de todas características.
-         - y: vector de etiquetas."""
+         - y: vector de etiquetas.
+         - xlim = [xmin, xmax]: límites del plot en el eje X.
+         - ylim = [ymin, ymax]: límites del plot en el eje Y.
+         """
 
     scatter_plot(
         X[:, features], y,
         axis = names,
         title = "Proyección de las dos características más relevantes",
+        xlim = xlim,
+        ylim = ylim,
         figname = "scatter_relevance",
         save_figures = save_figures,
         img_path = img_path)

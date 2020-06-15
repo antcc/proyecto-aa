@@ -189,14 +189,14 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
 SEED = 2020
 N_CLASSES = 2
 CLASS_THRESHOLD = 1400
-DO_MODEL_SELECTION = True
+DO_MODEL_SELECTION = False
 PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_ANALYSIS = False
 SAVE_FIGURES = False
 IMG_PATH = "../doc/img"
-SHOW = Show.NONE
+SHOW = Show.SOME
 
 #
 # FUNCIONES AUXILIARES
@@ -674,7 +674,7 @@ def fit_models(X_train, y_train):
     clf_rf = Pipeline(preproc
         + [("clf", RandomForestClassifier(random_state = SEED,
                                           n_estimators = 400,
-                                          max_depth = 15,
+                                          max_depth = 20,
                                           ccp_alpha = 0.0001,
                                           n_jobs = -1))])
 
@@ -878,14 +878,19 @@ def main():
         print("Mostrando gráfica de distribución de clases...")
         vs.plot_class_distribution(y_train_full, y_test, N_CLASSES, SAVE_FIGURES, IMG_PATH)
 
-        # Visualizamos las variables más relevantes
-        print("Mostrando proyección de las dos variables más relevantes...")
-        # TODO: elegir las más relevantes por criterio RF
-        features = [24, 25]
-        vs.plot_features(
-            features, attr_names[features],
-            X_train_full, y_train_full,
-            SAVE_FIGURES, IMG_PATH)
+        # Visualizamos la importancia de las características según RF
+        print("Mostrando gráfico de importancia de características...")
+        pipe = Pipeline([("var", VarianceThreshold()), ("std", StandardScaler())])
+        X_train_full_pre = pipe.fit_transform(X_train_full)
+        rf = RandomForestClassifier(200, random_state = SEED, max_depth = 20, n_jobs = -1)
+        rf.fit(X_train_full_pre, y_train_full)
+
+        vs.plot_feature_importance(
+            rf.feature_importances_,
+            n = X_train_full_pre.shape[1],
+            pca = False,
+            save_figures = SAVE_FIGURES,
+            img_path = IMG_PATH)
 
         # Mostramos gráficas de preprocesado
         print("Mostrando matrices de correlación antes y después de cada preprocesado...")

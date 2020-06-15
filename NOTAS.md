@@ -150,6 +150,12 @@ b) Realizar division train/test/val, ajustar mejor modelo en cada caso por CV en
 - Estructurar código para que por defecto solo se haga train/test en los modelos finales. Permitir realizar el proceso completo
 - de elección de parámetros y modelos etc.
 
+Importancia de caracts:
+Indices: [25 24 39 26 28 38 41 19 22 37  2  4 42  1 27  9 40 23 44 18 43 48 51 45
+  5 47 46 36 20 12  7 55  0 52 53 49 54  6 57 56 50 21 10 16 15 14  8 34
+ 17 35 31 13 30 32 33 29 11  3]
+
+
 # Formato de la documentación
 
 - Rellenar el `README.md`
