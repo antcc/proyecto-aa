@@ -411,31 +411,41 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
          - x_logscale: si se muestra escala logarítmica en el eje X.
          - test_time: si se mide el tiempo de evaluación en 'test'."""
 
+    # Si tenemos dos hiperparametros
     two_hyp = hyps2 is not None
+    # Resultados acc-cv y tiempo de entrenamiento
     cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
     cv_time = np.array(clf_cv.cv_results_["mean_fit_time"])
+    # Para clf como knn, si tomar tiempo en test
     if test_time:
         cv_time = np.array(clf_cv.cv_results["mean_score_time"])
+    # Redimensionamos para dos parámetros
     if two_hyp:
         new_shape = (len(hyps1), len(hyps2))
         cv_acc = cv_acc.reshape(new_shape)
         cv_time = cv_time.reshape(new_shape)
 
+    # Figura
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
     plt.suptitle("Análisis de " + clf_name)
 
+    # Si usar escala logarímica en el eje x
     if x_logscale:
         ax1.set_xscale("log")
         ax2.set_xscale("log")
 
+    # cv-acc/time y heatmap
     if two_hyp:
+        # Resultado cv-acc/time para hyp2 fijando hyp1
         for i in range(len(hyps1)):
             ax1.plot(hyps2, cv_acc[i], "-o", label = str(hyps1[i]))
             ax2.plot(hyps2, cv_time[i], "-o", label = str(hyps1[i]))
+            # Nombre ejes
             ax1.set_xlabel(hyp_name2)
             ax1.set_ylabel("cv-acc")
             ax2.set_xlabel(hyp_name2)
             ax2.set_ylabel("fit time (s)")
+        # Leyenda
         ax1.legend(title = hyp_name1, ncol = 2)
         ax2.legend(title = hyp_name1, ncol = 2)
         fig.tight_layout()
@@ -446,16 +456,18 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
             plt.show()
         wait(save_figures)
 
+        # acc-cv para mapa de calor
         cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
         data_dic = {hyp_name1: np.repeat(hyps1, len(hyps2)),
                     hyp_name2: hyps2 * len(hyps1),
                     "cv_acc": cv_acc}
-        # Dataframe
+        # Transformación a dataframe
         df = pd.DataFrame(data = data_dic)
-        # Transformación para heatmap
         df = pd.pivot_table(df, values = "cv_acc", index = [hyp_name1],
             columns = hyp_name2)
+        # Mapa de calor
         sns.heatmap(df, linewidth = 0.5, cmap = "RdBu")
+        # Título
         plt.title(clf_name)
 
         if save_figures:
@@ -463,9 +475,13 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
         else:
             plt.show()
         wait(save_figures)
+    # Para un parámetro solo acc-cv/time
     else:
+        # cv-acc
         ax1.plot(hyps1, cv_acc, "-o")
+        # time
         ax2.plot(hyps1, cv_time, "-or")
+        # Nombre ejes
         ax1.set_xlabel(hyp_name1)
         ax1.set_ylabel("cv-acc")
         ax2.set_xlabel(hyp_name1)
