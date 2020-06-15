@@ -48,6 +48,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics.pairwise import euclidean_distances, rbf_kernel
 from sklearn.utils.multiclass import unique_labels
+from sklearn.tree import DecisionTreeClassifier
 
 from scipy.stats import randint
 
@@ -195,9 +196,9 @@ PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_ANALYSIS = True
-SAVE_FIGURES = False
-IMG_PATH = "../doc/img"
-SHOW = Show.NONE
+SAVE_FIGURES = True
+IMG_PATH = "../doc/img/"
+SHOW = Show.SOME
 
 #
 # FUNCIONES AUXILIARES
@@ -479,7 +480,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
             print("Mostrando resultado de preanálisis para {}...".format(name))
             vs.plot_analysis(best_clf_lin, name,
                 clf["clf__" + param_name], param_name,
-                x_logscale1 = True,
+                x_logscale = True,
                 save_figures = SAVE_FIGURES, img_path = IMG_PATH)
 
     # Escogemos modelos lineales
@@ -488,19 +489,19 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
         {"clf": [LogisticRegression(penalty = 'l2',
                                     random_state = SEED,
                                     max_iter = max_iter)],
-         "clf__C": np.logspace(-4, 2, 9)},
+         "clf__C": np.logspace(-4, -2, 7)},
         {"clf": [RidgeClassifier(random_state = SEED,
                                  max_iter = max_iter)],
-         "clf__alpha": np.logspace(-2, 4, 9)},
+         "clf__alpha": np.logspace(1, 6, 7)},
         {"clf": [SGDClassifier(random_state = SEED,
                                penalty = 'l2',
                                max_iter = max_iter,
                                eta0 = 0.1)],
          "clf__learning_rate": ['optimal', 'invscaling', 'adaptive'],
-         "clf__alpha": np.logspace(-6, 0, 9)}]
+         "clf__alpha": np.logspace(-3, 1, 7)}]
 
     # Ajustamos el mejor modelo
-    """print("-> AJUSTE\n")
+    print("-> AJUSTE\n")
     best_clf_lin = fit_cv(
         X_train, y_train,
         clfs = clfs_lin,
@@ -509,7 +510,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_lin.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_lin)"""
+    best_clfs.append(best_clf_lin)
 
     #
     # CLASIFICADOR RANDOM FOREST
@@ -519,12 +520,12 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Preanálisis de Random Forest
     if SHOW_ANALYSIS:
-        n_est = [100, 150, 200, 300, 400, 500, 600]
-        max_depth = [5, 10, 15, 20, 30, 40, 50, 58]
+        n_est = [100, 200, 300, 400, 500, 600]
+        max_depth = [5, 10, 15, 20, 30, 40, 58]
         clfs_rf = [
             {"clf": [RandomForestClassifier(random_state = SEED)],
-             "clf__n_estimators": n_est,
-             "clf__max_depth": max_depth}]
+             "clf__max_depth": max_depth,
+             "clf__n_estimators": n_est}]
 
         print("-> PREANÁLISIS: número de árboles y profundidad máxima\n")
         best_clf_rf = fit_cv(
@@ -535,22 +536,22 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
         print("Mostrando resultado de preanálisis para RandomForest...")
         vs.plot_analysis(best_clf_rf, "RandomForest",
-            n_est, "n_estimators",
             max_depth, "max_depth",
+            n_est, "n_estimators",
             save_figures = SAVE_FIGURES, img_path = IMG_PATH)
 
     # Escogemos modelos de Random Forest
     clfs_rf = [
-        {"clf": [RandomForestClassifier(random_state = SEED,
-                                        n_estimators = 400,
-                                        max_depth = 20)],
+        {"clf": [RandomForestClassifier(random_state = SEED)],
+         "clf__n_estimators": [400, 600],
+         "clf__max_depth": [15, 20, 25],
          "clf__ccp_alpha": loguniform(1e-4, 1e-2)},
-        {"clf": [RandomForestClassifier(random_state = SEED,
-                                        n_estimators = 400,
-                                        max_depth = 20)]}]
+        {"clf": [RandomForestClassifier(random_state = SEED)],
+         "clf__n_estimators": [400, 600],
+         "clf__max_depth": [15, 20, 25]}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    """print("-> AJUSTE\n")
+    print("-> AJUSTE\n")
     best_clf_rf = fit_cv(
         X_train, y_train,
         clfs = clfs_rf,
@@ -560,7 +561,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_rf.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_rf)"""
+    best_clfs.append(best_clf_rf)
 
     #
     # CLASIFICADOR BOOSTING
@@ -570,13 +571,17 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Preanálisis de modelos de boosting
     if SHOW_ANALYSIS:
+        ds = [1, 2, 3, 4, 5]
         clfs_boost = [
-            {"clf": [AdaBoostClassifier(random_state = SEED)],
-             "clf__n_estimators": [100, 150, 200, 300, 400]},
+            {"clf": [AdaBoostClassifier(random_state = SEED,
+                                        base_estimator = DecisionTreeClassifier())],
+             "clf__base_estimator__max_depth": ds,
+             "clf__n_estimators": [100, 200, 300, 400, 500]},
             {"clf": [GradientBoostingClassifier(random_state = SEED)],
-             "clf__n_estimators": [100, 150, 200, 300, 400]}]
+             "clf__max_depth": ds,
+             "clf__n_estimators": [100, 200, 300, 400, 500]}]
 
-        print("-> PREANÁLISIS: número de árboles\n")
+        print("-> PREANÁLISIS: número de árboles y profundidad máxima\n")
         for clf in clfs_boost:
             best_clf_boost = fit_cv(
                 X_val, y_val,
@@ -588,22 +593,23 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
             print("Mostrando resultado de preanálisis para {}...".format(name))
             vs.plot_analysis(best_clf_boost, name,
+                ds, "max_depth",
                 clf["clf__n_estimators"], "n_estimators",
                 save_figures = SAVE_FIGURES, img_path = IMG_PATH)
 
     # Escogemos modelos de Boosting
     clfs_boost = [
         {"clf": [AdaBoostClassifier(random_state = SEED)],
-         "clf__n_estimators": [150, 250, 400],
+         "clf__n_estimators": [175, 200, 225],
          "clf__learning_rate": [0.1, 1.0, 10.0]},
         {"clf": [GradientBoostingClassifier(random_state = SEED)],
-         "clf__n_estimators": [200, 400],
+         "clf__n_estimators": [275, 300, 325],
          "clf__learning_rate": [0.01, 0.1, 1.0],
-         "clf__subsample": [1.0, 0.85, 0.7],
+         "clf__subsample": [1.0, 0.75],
          "clf__max_depth": [2, 3, 4]}]
 
     # Ajustamos el mejor modelo
-    """print("-> AJUSTE\n")
+    print("-> AJUSTE\n")
     best_clf_boost = fit_cv(
         X_train, y_train,
         clfs = clfs_boost,
@@ -611,7 +617,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_boost.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_boost)"""
+    best_clfs.append(best_clf_boost)
 
     #
     # CLASIFICADOR MLP
@@ -625,6 +631,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
             {"clf": [MLPClassifier(random_state = SEED,
                                learning_rate_init = 0.01,
                                solver = 'sgd',
+                               max_iter = 300,
                                learning_rate = 'adaptive',
                                activation = 'relu',
                                tol = 1e-3)],
@@ -640,7 +647,10 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
             show_cv = False)
 
         params = best_clf_mlp.cv_results_['params']
-        layers = [d['clf__hidden_layer_sizes'][0] for d in params]
+        layers = np.sort([d['clf__hidden_layer_sizes'][0] for d in params])
+        #TODO: borrar
+        for la in layers:
+            print("#Capas: {}".format(la))
 
         print("Mostrando resultado de preanálisis para MLP...")
         vs.plot_analysis(best_clf_mlp, "MLP",
@@ -652,14 +662,15 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
         {"clf": [MLPClassifier(random_state = SEED,
                                learning_rate_init = 0.1,
                                solver = 'sgd',
+                               max_iter = 300,
                                learning_rate = 'adaptive',
                                activation = 'relu',
                                tol = 1e-3)],
-         "clf__hidden_layer_sizes": multi_randint(50, 101, 3),
+         "clf__hidden_layer_sizes": [(56, 56, 56), (79, 79, 79), (98, 98, 98)],
          "clf__alpha": loguniform(1e-2, 1e2)}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
-    """print("-> AJUSTE\n")
+    print("-> AJUSTE\n")
     best_clf_mlp = fit_cv(
         X_train, y_train,
         clfs = clfs_mlp,
@@ -669,7 +680,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_mlp.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_mlp)"""
+    best_clfs.append(best_clf_mlp)
 
     #
     # CLASIFICADOR KNN
@@ -699,11 +710,11 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
     # Escogemos modelos de KNN
     clfs_knn = [
         {"clf": [KNeighborsClassifier()],
-         "clf__n_neighbors": [10, 50, 100],
+         "clf__n_neighbors": [80, 100, 120],
          "clf__weights": ['uniform', 'distance']}]
 
     # Ajustamos el mejor modelo
-    """print("-> AJUSTE\n")
+    print("-> AJUSTE\n")
     best_clf_knn = fit_cv(
         X_train, y_train,
         clfs = clfs_knn,
@@ -711,7 +722,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_knn.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_knn)"""
+    best_clfs.append(best_clf_knn)
 
     #
     # CLASIFICADOR RBF
@@ -721,7 +732,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Preanálisis de modelos de RBF
     if SHOW_ANALYSIS:
-        ks = [10, 25, 50, 100, 150, 200]
+        ks = [10, 25, 50, 100, 150, 200, 250]
         clfs_rbf = [
             {"clf": [RBFNetworkClassifier(random_state = SEED)],
              "clf__k": ks}]
@@ -741,11 +752,11 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     clfs_rbf = [
         {"clf": [RBFNetworkClassifier(random_state = SEED)],
-         "clf__k": [50, 100, 200],
-         "clf__alpha": np.logspace(-10, -5, 5)}]
+         "clf__k": [125, 150, 175],
+         "clf__alpha": np.logspace(-10, 0, 10)}]
 
     # Ajustamos el mejor modelo
-    """best_clf_rbf = fit_cv(
+    best_clf_rbf = fit_cv(
         X_train, y_train,
         clfs = clfs_rbf,
         model_class = Model.SIMILARITY,
@@ -753,7 +764,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_rbf.fit(X_train_full, y_train_full)
-    best_clfs.append(best_clf_rbf)"""
+    best_clfs.append(best_clf_rbf)
 
     #
     # CLASIFICADOR ALEATORIO
@@ -979,8 +990,8 @@ def main():
     # Inicio de medición de tiempo
     start = default_timer()
 
-    # Ignorar warnings de convergencia en LogisticRegression
-    os.environ["PYTHONWARNINGS"] = "ignore:lbfgs failed to converge:UserWarning"
+    # Ignorar warnings de convergencia
+    os.environ["PYTHONWARNINGS"] = "ignore::UserWarning"
 
     # Semilla aleatoria para reproducibilidad
     np.random.seed(SEED)

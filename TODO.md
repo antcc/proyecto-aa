@@ -4,6 +4,8 @@
 - Cambiar ruta de lectura de datos a "datos/"
 - Cambiar show_cv = False por defecto
 - Poner puntos de parada
+- Eliminar print en MLP_model_analysis
+- Descomentar #plt.suptitle en visualization
 - DO_MODEL_SELECTION = False
 - Quitar caché?
 - Comentar código y revisar estilo

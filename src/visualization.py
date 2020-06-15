@@ -228,7 +228,7 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
     """
 
     fig, axes = plt.subplots(1, 3, figsize = (16, 6))
-    plt.suptitle(title, y = 0.96)
+    #plt.suptitle(title, y = 0.96)
 
     if scoring == 'accuracy':
         score_name = "Accuracy"
@@ -347,7 +347,7 @@ def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, im
     """Muestra la distribución de clases en entrenamiento y test."""
 
     fig, axs = plt.subplots(1, 2, figsize = (12, 6))
-    plt.suptitle("Distribución de clases", y = 0.96)
+    #plt.suptitle("Distribución de clases", y = 0.96)
 
     # Diagrama de barras en entrenamiento
     unique, counts = np.unique(y_train.astype(int), return_counts = True)
@@ -418,7 +418,7 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
     cv_time = np.array(clf_cv.cv_results_["mean_fit_time"])
     # Para clf como knn, si tomar tiempo en test
     if test_time:
-        cv_time = np.array(clf_cv.cv_results["mean_score_time"])
+        cv_time = np.array(clf_cv.cv_results_["mean_score_time"])
     # Redimensionamos para dos parámetros
     if two_hyp:
         new_shape = (len(hyps1), len(hyps2))
@@ -426,8 +426,8 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
         cv_time = cv_time.reshape(new_shape)
 
     # Figura
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 4))
-    plt.suptitle("Análisis de " + clf_name)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (12, 6))
+    #plt.suptitle("Análisis de " + clf_name)
 
     # Si usar escala logarímica en el eje x
     if x_logscale:
@@ -456,25 +456,30 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
             plt.show()
         wait(save_figures)
 
+        # Nuevo plot para mapa de calor
+        plt.figure(figsize = (8, 6))
+        plt.title(clf_name)
+
         # acc-cv para mapa de calor
         cv_acc = np.array(clf_cv.cv_results_["mean_test_score"])
         data_dic = {hyp_name1: np.repeat(hyps1, len(hyps2)),
                     hyp_name2: hyps2 * len(hyps1),
                     "cv_acc": cv_acc}
+
         # Transformación a dataframe
         df = pd.DataFrame(data = data_dic)
         df = pd.pivot_table(df, values = "cv_acc", index = [hyp_name1],
             columns = hyp_name2)
+
         # Mapa de calor
         sns.heatmap(df, linewidth = 0.5, cmap = "RdBu")
-        # Título
-        plt.title(clf_name)
 
         if save_figures:
             plt.savefig(img_path + clf_name + "_heatmap.png")
         else:
             plt.show()
         wait(save_figures)
+
     # Para un parámetro solo acc-cv/time
     else:
         # cv-acc
