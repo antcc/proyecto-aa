@@ -228,7 +228,7 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
     """
 
     fig, axes = plt.subplots(1, 3, figsize = (16, 6))
-    #plt.suptitle(title, y = 0.96)
+    plt.suptitle(title, y = 0.96)
 
     if scoring == 'accuracy':
         score_name = "Accuracy"
@@ -347,7 +347,7 @@ def plot_class_distribution(y_train, y_test, n_classes, save_figures = False, im
     """Muestra la distribución de clases en entrenamiento y test."""
 
     fig, axs = plt.subplots(1, 2, figsize = (12, 6))
-    #plt.suptitle("Distribución de clases", y = 0.96)
+    plt.suptitle("Distribución de clases", y = 0.96)
 
     # Diagrama de barras en entrenamiento
     unique, counts = np.unique(y_train.astype(int), return_counts = True)

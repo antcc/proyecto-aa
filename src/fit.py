@@ -79,16 +79,25 @@ class Model(Enum):
     SIMILARITY = 4
 
 class multi_randint():
-    """Representa un entero aleatorio como una tupla (r, r, ..., r)."""
+    """Representa un entero aleatorio como una tupla (r, r, ..., r) de tamaño 'size',
+       cogido sin reemplazamiento uniformemente en un intervalo [low, high]."""
 
     def __init__(self, low, high, size):
         self.low = low,
         self.high = high
         self.size = size
+        self.seen = []
 
     def rvs(self, random_state = 42):
-        return self.size * (randint.rvs(
-            self.low, self.high, size = 1, random_state = random_state)[0],)
+        sample = randint.rvs(
+            self.low, self.high, size = 1,
+            random_state = random_state)[0]
+
+        if sample not in self.seen:
+            self.seen.append(sample)
+            return self.size * (sample,)
+
+        return self.size * (0,)
 
 class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
     """Implementación de un clasificador de red de funciones (gaussianas) de base radial.
@@ -206,7 +215,7 @@ SHOW = Show.SOME
 
 def print_evaluation_metrics(clf, X_lst, y_lst, names):
     """Imprime la evaluación de resultados en varios conjuntos de unos clasificadores.
-      - clf: lista de clasificadores.
+      - clf: lista de clasificadores como Pipelines.
       - X_lst: lista de matrices de características.
       - y_lst: lista de vectores de etiquetas.
       - names: lista de nombres de los conjuntos (training, test, ...)."""
@@ -489,16 +498,16 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
         {"clf": [LogisticRegression(penalty = 'l2',
                                     random_state = SEED,
                                     max_iter = max_iter)],
-         "clf__C": np.logspace(-4, -2, 7)},
+         "clf__C": np.logspace(-4, 0, 9)},
         {"clf": [RidgeClassifier(random_state = SEED,
                                  max_iter = max_iter)],
-         "clf__alpha": np.logspace(1, 6, 7)},
+         "clf__alpha": np.logspace(0, 5, 9)},
         {"clf": [SGDClassifier(random_state = SEED,
                                penalty = 'l2',
                                max_iter = max_iter,
                                eta0 = 0.1)],
          "clf__learning_rate": ['optimal', 'invscaling', 'adaptive'],
-         "clf__alpha": np.logspace(-3, 1, 7)}]
+         "clf__alpha": np.logspace(-5, 1, 7)}]
 
     # Ajustamos el mejor modelo
     print("-> AJUSTE\n")
@@ -506,7 +515,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
         X_train, y_train,
         clfs = clfs_lin,
         model_class = Model.LINEAR,
-        selection_strategy = Selection.PCA).best_estimator_['clf']
+        selection_strategy = Selection.PCA).best_estimator_
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_lin.fit(X_train_full, y_train_full)
@@ -544,11 +553,11 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
     clfs_rf = [
         {"clf": [RandomForestClassifier(random_state = SEED)],
          "clf__n_estimators": [400, 600],
-         "clf__max_depth": [15, 20, 25],
+         "clf__max_depth": [15, 20, 58],
          "clf__ccp_alpha": loguniform(1e-4, 1e-2)},
         {"clf": [RandomForestClassifier(random_state = SEED)],
          "clf__n_estimators": [400, 600],
-         "clf__max_depth": [15, 20, 25]}]
+         "clf__max_depth": [15, 20, 58]}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
     print("-> AJUSTE\n")
@@ -557,7 +566,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
         clfs = clfs_rf,
         model_class = Model.RF,
         randomized = True,
-        cv_steps = 20).best_estimator_['clf']
+        cv_steps = 20).best_estimator_
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_rf.fit(X_train_full, y_train_full)
@@ -603,17 +612,17 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
          "clf__n_estimators": [175, 200, 225],
          "clf__learning_rate": [0.1, 1.0, 10.0]},
         {"clf": [GradientBoostingClassifier(random_state = SEED)],
-         "clf__n_estimators": [275, 300, 325],
+         "clf__n_estimators": [100, 300, 400],
          "clf__learning_rate": [0.01, 0.1, 1.0],
          "clf__subsample": [1.0, 0.75],
-         "clf__max_depth": [2, 3, 4]}]
+         "clf__max_depth": [1, 2, 4]}]
 
     # Ajustamos el mejor modelo
     print("-> AJUSTE\n")
     best_clf_boost = fit_cv(
         X_train, y_train,
         clfs = clfs_boost,
-        model_class = Model.BOOST).best_estimator_['clf']
+        model_class = Model.BOOST).best_estimator_
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_boost.fit(X_train_full, y_train_full)
@@ -635,7 +644,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
                                learning_rate = 'adaptive',
                                activation = 'relu',
                                tol = 1e-3)],
-             "clf__hidden_layer_sizes": multi_randint(50, 101, 3)}]
+             "clf__hidden_layer_sizes": multi_randint(50, 101, 2)}]
 
         print("-> PREANÁLISIS: número de neuronas por capa\n")
         best_clf_mlp = fit_cv(
@@ -666,7 +675,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
                                learning_rate = 'adaptive',
                                activation = 'relu',
                                tol = 1e-3)],
-         "clf__hidden_layer_sizes": [(56, 56, 56), (79, 79, 79), (98, 98, 98)],
+         "clf__hidden_layer_sizes": [(56, 56), (78, 78), (99, 99)],
          "clf__alpha": loguniform(1e-2, 1e2)}]
 
     # Ajustamos el mejor modelo eligiendo 20 candidatos de forma aleatoria
@@ -676,7 +685,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
         clfs = clfs_mlp,
         model_class = Model.MLP,
         randomized = True,
-        cv_steps = 20).best_estimator_['clf']
+        cv_steps = 20).best_estimator_
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_mlp.fit(X_train_full, y_train_full)
@@ -710,7 +719,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
     # Escogemos modelos de KNN
     clfs_knn = [
         {"clf": [KNeighborsClassifier()],
-         "clf__n_neighbors": [80, 100, 120],
+         "clf__n_neighbors": [80, 100, 120, 150],
          "clf__weights": ['uniform', 'distance']}]
 
     # Ajustamos el mejor modelo
@@ -718,7 +727,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
     best_clf_knn = fit_cv(
         X_train, y_train,
         clfs = clfs_knn,
-        model_class = Model.SIMILARITY).best_estimator_['clf']
+        model_class = Model.SIMILARITY).best_estimator_
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_knn.fit(X_train_full, y_train_full)
@@ -732,7 +741,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Preanálisis de modelos de RBF
     if SHOW_ANALYSIS:
-        ks = [10, 25, 50, 100, 150, 200, 250]
+        ks = [10, 25, 50, 100, 150, 200, 250, 300]
         clfs_rbf = [
             {"clf": [RBFNetworkClassifier(random_state = SEED)],
              "clf__k": ks}]
@@ -752,15 +761,16 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     clfs_rbf = [
         {"clf": [RBFNetworkClassifier(random_state = SEED)],
-         "clf__k": [125, 150, 175],
-         "clf__alpha": np.logspace(-10, 0, 10)}]
+         "clf__k": [200, 250, 300],
+         "clf__alpha": np.logspace(-10, 0, 7)}]
 
     # Ajustamos el mejor modelo
+    print("-> AJUSTE\n")
     best_clf_rbf = fit_cv(
         X_train, y_train,
         clfs = clfs_rbf,
         model_class = Model.SIMILARITY,
-        n_jobs = 1).best_estimator_['clf']
+        n_jobs = 1).best_estimator_
 
     # Reentrenamos en el conjunto de entrenamiento completo
     best_clf_rbf.fit(X_train_full, y_train_full)
@@ -798,7 +808,7 @@ def fit_models(X_train, y_train):
         + [("clf", SGDClassifier(random_state = SEED,
                                  learning_rate = 'adaptive',
                                  eta0 = 0.1,
-                                 alpha = 0.0003))])
+                                 alpha = 0.004))])
 
     print("Entrenando clasificador lineal... ", end = "", flush = True)
     start = default_timer()
@@ -817,9 +827,8 @@ def fit_models(X_train, y_train):
     preproc = preprocess_pipeline(Model.RF, Selection.NONE)
     clf_rf = Pipeline(preproc
         + [("clf", RandomForestClassifier(random_state = SEED,
-                                          n_estimators = 400,
+                                          n_estimators = 600,
                                           max_depth = 20,
-                                          ccp_alpha = 0.0001,
                                           n_jobs = -1))])
 
     print("Entrenando clasificador Random Forest... ", end = "", flush = True)
@@ -839,9 +848,9 @@ def fit_models(X_train, y_train):
     preproc = preprocess_pipeline(Model.BOOST, Selection.NONE)
     clf_gb = Pipeline(preproc
         + [("clf", GradientBoostingClassifier(random_state = SEED,
-                                              n_estimators = 400,
+                                              n_estimators = 325,
                                               learning_rate = 0.1,
-                                              max_depth = 4,
+                                              max_depth = 2,
                                               subsample = 0.75))])
 
     print("Entrenando clasificador Gradient Boosting... ", end = "", flush = True)
@@ -861,13 +870,13 @@ def fit_models(X_train, y_train):
     preproc = preprocess_pipeline(Model.MLP, Selection.NONE)
     clf_mlp = Pipeline(preproc
         + [("clf", MLPClassifier(random_state = SEED,
-                                 hidden_layer_sizes = (75, 75, 75),
+                                 hidden_layer_sizes = (99, 99),
                                  learning_rate_init = 0.1,
                                  solver = 'sgd',
                                  learning_rate = 'adaptive',
                                  activation = 'relu',
                                  tol = 1e-3,
-                                 alpha = 1.0))])
+                                 alpha = 1.5))])
 
     print("Entrenando clasificador MLP... ", end = "", flush = True)
     start = default_timer()
@@ -885,8 +894,8 @@ def fit_models(X_train, y_train):
 
     preproc = preprocess_pipeline(Model.SIMILARITY, Selection.NONE)
     clf_knn = Pipeline(preproc
-        + [("clf", KNeighborsClassifier(n_neighbors = 50,
-                                        weights = 'uniform',
+        + [("clf", KNeighborsClassifier(n_neighbors = 120,
+                                        weights = 'distance',
                                         n_jobs = -1))])
 
     print("Entrenando clasificador KNN... ", end = "", flush = True)
@@ -906,8 +915,8 @@ def fit_models(X_train, y_train):
     preproc = preprocess_pipeline(Model.SIMILARITY, Selection.NONE)
     clf_rbf = Pipeline(preproc
         + [("clf", RBFNetworkClassifier(random_state = SEED,
-                                        k = 200,
-                                        alpha = 1e-10))])
+                                        k = 175,
+                                        alpha = 1e-9))])
 
     print("Entrenando clasificador RBF... ", end = "", flush = True)
     start = default_timer()
@@ -964,11 +973,18 @@ def compare(clfs, X_train, X_test, y_train, y_test):
 
     for clf in clfs:
         print("--> {} <--".format(clf['clf']))
-        print_evaluation_metrics(
-            clf,
-            [X_train, X_test],
-            [y_train, y_test],
-            ["training", "test"])
+        if clf['clf'].__class__.__name__ == "KNeighborsClassifier":
+            print_evaluation_metrics(
+                clf,
+                [X_test],
+                [y_test],
+                ["test"])
+        else:
+            print_evaluation_metrics(
+                clf,
+                [X_train, X_test],
+                [y_train, y_test],
+                ["training", "test"])
 
         if SHOW != Show.NONE:
             # Matriz de confusión
