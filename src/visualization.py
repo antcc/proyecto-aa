@@ -37,6 +37,7 @@ def wait(save_figures = False):
 
     if not save_figures:
         input("(Pulsa [Enter] para continuar...)\n")
+    plt.close()
 
 def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
         xlim = None, ylim = None, figname = "", cmap = cm.tab10,
@@ -106,15 +107,16 @@ def scatter_plot(X, y, axis, ws = None, labels = None, title = None,
 
     wait(save_figures)
 
-def plot_corr_matrix(raw, preproc, title, save_figures = False, img_path = ""):
+def plot_corr_matrix(raw, preproc, title, save_title = "", save_figures = False, img_path = ""):
     """Muestra la matriz de correlación de un cierto conjunto, antes y
        después del preprocesado.
          - raw: datos antes del preprocesado.
          - preproc: datos tras el preprocesado.
-         - title: título del plot."""
+         - title: título del plot.
+         - save_title: título de la imagen."""
 
     fig, axs = plt.subplots(1, 2, figsize = (15, 6))
-    fig.suptitle(title, y = 0.85)
+    fig.suptitle(title)
 
     # Correlación antes de preprocesar
     with np.errstate(invalid = 'ignore'):
@@ -130,7 +132,7 @@ def plot_corr_matrix(raw, preproc, title, save_figures = False, img_path = ""):
     fig.colorbar(im, ax = axs.ravel().tolist(), shrink = 0.6)
 
     if save_figures:
-        plt.savefig(img_path + "correlation.png")
+        plt.savefig(img_path + "correlation_" + save_title + ".png")
     else:
         plt.show()
     wait(save_figures)
@@ -150,12 +152,12 @@ def plot_feature_importance(importances, n, pca, save_figures = False, img_path 
         title = "Importancia de características"
 
     # Diagrama de barras para la relevancia
-    plt.figure(figsize = (8, 6))
+    plt.figure(figsize = (12, 6))
     plt.title(title)
     plt.xlabel("Índice")
     plt.ylabel("Importancia")
     plt.bar(range(n), importances[indices])
-    plt.xticks(range(n), indices)
+    plt.xticks(range(n), indices, fontsize = 8)
     if save_figures:
         plt.savefig(img_path + "importance.png")
     else:
@@ -338,7 +340,7 @@ def confusion_matrix(clf, X, y, save_figures = False, img_path = ""):
     disp.ax_.set_ylabel("Etiqueta real")
 
     if save_figures:
-        plt.savefig(img_path + "confusion.png")
+        plt.savefig(img_path + "confusion_" + clf['clf'].__class__.__name__ + ".png")
     else:
         plt.show()
     wait(save_figures)
