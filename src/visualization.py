@@ -501,19 +501,20 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
             plt.show()
         wait(save_figures)
 
-def plot_auc(clf, X, y, save_figures = False, img_path = ""):
-    """Muestra la curva ROC para un clasificador ya entrenado.
-         - clf: clasificador.
+def plot_auc(clfs, X, y, save_figures = False, img_path = ""):
+    """Muestra la curva ROC para varios clasificadores ya entrenados.
+         - clfs: clasificadores.
          - X: características.
          - y: etiquetas."""
 
     fig, ax = plt.subplots(figsize = (8, 6))
-    name = clf['clf'].__class__.__name__
-    plot_roc_curve(clf, X, y, name = name, ax = ax)
     ax.plot([0, 1], [0, 1], color = 'navy', lw = 2, linestyle = '--')
+    for clf in clfs:
+        name = clf['clf'].__class__.__name__
+        plot_roc_curve(clf, X, y, name = name, ax = ax)
 
     if save_figures:
-        plt.savefig(img_path + "auc_" + name + ".png")
+        plt.savefig(img_path + "auc.png")
     else:
         plt.show()
     wait(save_figures)
