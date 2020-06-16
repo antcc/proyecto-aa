@@ -294,7 +294,7 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
     axes[2].set_title("Desempeño del modelo")
 
     if save_figures:
-        plt.savefig(img_path + "learning_curve.png")
+        plt.savefig(img_path + "learning_curve_" + title + ".png")
     else:
         plt.show()
     wait(save_figures)

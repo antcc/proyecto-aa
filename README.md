@@ -17,4 +17,5 @@ Realizado junto a [@MiguelLentisco](https://github.com/MiguelLentisco). Curso 20
 
 - Pandoc 2.9.2.1+
 - Filtros de Pandoc: [pandoc-citeproc](https://github.com/jgm/pandoc-citeproc)
+
 ## Resultados

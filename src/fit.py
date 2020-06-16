@@ -207,9 +207,9 @@ PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_ANALYSIS = False
-SAVE_FIGURES = True
+SAVE_FIGURES = False
 IMG_PATH = "../doc/img/"
-SHOW = Show.ALL
+SHOW = Show.NONE
 
 #
 # FUNCIONES AUXILIARES
@@ -376,7 +376,7 @@ def preprocess_graphs(X):
 def fit_cv(X_train, y_train, clfs,
         model_class, selection_strategy = Selection.NONE,
         randomized = False, cv_steps = 20,
-        n_jobs = -1, show_cv = True):
+        n_jobs = -1, show_cv = False):
     """Ajuste de varios modelos de clasificación para un conjunto de datos, eligiendo
        por validación cruzada el mejor de ellos dentro de una clase concreta.
          - X_train, y_train: datos de entrenamiento.
@@ -404,13 +404,13 @@ def fit_cv(X_train, y_train, clfs,
             scoring = 'accuracy',
             n_iter = cv_steps,
             cv = 5, n_jobs = n_jobs,
-            verbose = 1)
+            verbose = 0)
     else:
         best_clf = GridSearchCV(
             pipe, clfs,
             scoring = 'accuracy',
             cv = 5, n_jobs = n_jobs,
-            verbose = 1)
+            verbose = 0)
 
     best_clf.fit(X_train, y_train)
 
@@ -870,7 +870,7 @@ def fit_models(X_train, y_train):
     preproc = preprocess_pipeline(Model.MLP, Selection.NONE)
     clf_mlp = Pipeline(preproc
         + [("clf", MLPClassifier(random_state = SEED,
-                                 hidden_layer_sizes = (58, 58),
+                                 hidden_layer_sizes = (88, 88),
                                  learning_rate_init = 0.1,
                                  solver = 'sgd',
                                  learning_rate = 'adaptive',
@@ -947,14 +947,16 @@ def fit_models(X_train, y_train):
     #
 
     if SHOW == Show.ALL:
-        print("Calculando y mostrando curvas de aprendizaje...")
+        print("Calculando y mostrando curvas de aprendizaje...\n")
         for clf in clfs:
+            name = clf['clf'].__class__.__name__
+            print("Clasificador: {}".format(name))
             vs.plot_learning_curve(
                 clf,
                 X_train, y_train,
                 n_jobs = -1, cv = 5,
                 scoring = 'accuracy',
-                title = clf['clf'].__class__.__name__,
+                title = name,
                 save_figures = SAVE_FIGURES,
                 img_path = IMG_PATH)
 
@@ -1059,7 +1061,7 @@ def main():
         print("Mostrando matrices de correlación antes y después de cada preprocesado...")
         preprocess_graphs(X_train_full)
 
-        if SHOW == Show.ALL and False:
+        if SHOW == Show.ALL:
             # Visualizamos el conjunto de entrenamiento en 2 dimensiones
             print("Mostrando proyección del conjunto de entrenamiento en dos dimensiones...")
             vs.plot_tsne(X_train_full, y_train_full, SAVE_FIGURES, IMG_PATH)
