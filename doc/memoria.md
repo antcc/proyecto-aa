@@ -45,20 +45,87 @@ Estudiar la distribución de clases si hacemos clasificación binaria (número e
 
 # Regularización
 
-El uso de la regularización es esencial para limitar la complejidad del modelo y el *overfitting*, cosa que nos permitirá obtener una mejor capacidad de generalización. En principio se consideran dos posibilidades de regularización:
+El uso de la regularización es esencial para limitar la complejidad del modelo y el *overfitting*, cosa que nos permitirá obtener una mejor capacidad de generalización. Consideramos la siguiente regularización:
 
 - **Regularización L2 (Ridge)**: se añade una penalización a la función de pérdida que es cuadrática en los pesos,
 $$
 L_{reg}(w) = L(w) + \lambda||w||_2^2.
 $$
-- **Regularización L1 (Lasso)**: en este caso la penalización es lineal en los pesos, considerando la suma del valor absoluto de los mismos,
-$$
-L_{reg}(w) = L(w) + \lambda \sum_i |w_i|.
-$$
 
-En ambos casos el valor de $\lambda > 0$ es un hiperparámetro del modelo, que controla la intensidad de la regularización (a mayor valor, más pequeños serán los pesos). Encontrar un valor adecuado es una tarea complicada, pues si es demasiado pequeño seguiremos teniendo sobreajuste, pero si es demasiado grande podríamos caer en el fenómeno opuesto: tener *underfitting* porque el modelo sea poco flexible y no consiga ajustar bien los datos de entrenamiento.
+El valor de $\lambda > 0$ es un hiperparámetro del modelo, que controla la intensidad de la regularización (a mayor valor, más pequeños serán los pesos). Encontrar un valor adecuado es una tarea complicada, pues si es demasiado pequeño seguiremos teniendo sobreajuste, pero si es demasiado grande podríamos caer en el fenómeno opuesto: tener *underfitting* porque el modelo sea poco flexible y no consiga ajustar bien los datos de entrenamiento.
+
+Hemos considerado L2 ya que queremos generalizar los modelos para bajar la varianza en pos de extraer un mayor valor de la métrica, a costa de no rebajar el tiempo de computación (reduciendo variables con L1), pero no nos importa puesto que el tiempo de entrenamiento es razonable y preferimos aumentar el acierto.
 
 # Técnicas y selección de modelos
+
+Pasamos a realizar la selección de hiperparámetros para cada modelo. Hemos considerado usar la técnica de $K$-fold cross validation para escoger la mejor configuración de hiperparámetros de cada modelo. Esta técnica se basa en dividir el conjunto de entrenamiento en $K$ conjuntos de igual tamaño, y va iterando sobre ellos de forma que en cada paso entrena los modelos en los datos pertenecientes a $K-1$ de los conjuntos, y los evalúa en el conjunto restante. Finalmente se realiza la media del error a lo largo de todos los mini-conjuntos de validación y se escoge el modelo con menor error. Este error se conoce como error de cross-validation, denotado $E_{cv}$, y sabemos que es un buen estimador del error fuera de la muestra.
+
+Para esto utilizamos la función `GridSearchCV`, la cual puede recibir un pipeline como estimador y una lista de diccionarios que represente el espacio de hiperparámetros. Para evitar el fenómeno de data snooping que podría contaminar los conjuntos de validación, todo el cauce de preprocesado y selección de modelos se realiza de principio a fin: fijamos al principio las divisiones en $K$ folds y las utilizamos en todo el proceso. Para el caso de clasificación, estas divisiones serán en particular instancias de `StratifiedKFold`, que respeta la distribución de clases en las divisiones.
+
+Para todos los modelos, usamos el preanálisis para estimar un buen espacio de búsqueda de los hiperparámetros, de manera que no es completamente arbitrario, si no que estimamos un óptimo en el valor de la métrica.
+
+Una vez hemos encontrado la mejor configuración para cada modelo, se vuelve a entrenar sobre todo el conjunto de entrenamiento, para obtener un mejor rendimiento. Este es el comportamiento por defecto de la función `GridSearchCV`.
+
+Comentamos ahora los modelos que pre-seleccionamos en el problema de clasificación. La métrica usada para decidir el mejor modelo será, de forma natural, el accuracy medio en los conjuntos de validación. Fijamos el número máximo de iteraciones en ??? para todos los modelos.
+
+## Modelos lineales
+
+Los distintos modelos lineales que hemos considerados, fijando el nº máximo de iteraciones en 1000.
+
+### Regresión Logística
+
+En primer lugar consideramos un modelo de regresión logística, implementado en el objeto `LogisticRegression`, usando regularización L2. El parámetro de regularización, cuyo inverso es lo que en el código se alude como C, viene dado por el preanálisis, considerando 9 puntos en el espacio logarítmico $[-4, 0]$.
+
+```python
+{"clf": [LogisticRegression(penalty = 'l2',
+                            random_state = SEED,
+                            max_iter = max_iter)],
+ "clf__C": np.logspace(-4, 0, 9)}
+```
+
+En este caso, la técnica de optimización es la que viene por defecto, que se conoce como [LBFGS](https://en.wikipedia.org/wiki/Limited-memory_BFGS). Se trata de un algoritmo iterativo similar al método de Newton para optimización, pero que utiliza una aproximación de la inversa de la matriz Hessiana. Se ha elegido porque tiene un tiempo de ejecución asumible y los resultados suelen ser buenos. La función a optimizar es la pérdida logarítmica: $$ L_{log}(w) = \frac{1}{N}\sum_{n=1}^N \log(1 + e^{-y_nw^Tx_n}), $$ a la que se añade el término de penalización L2. Debemos tener en cuenta que aunque el algoritmo optimice esta función para proporcionar un resultado, la métrica de error que nosotros estamos usando es el accuracy y no el error logarítmico.
+
+### Regresión lineal
+
+Consideramos también un modelo de regresión lineal. Utilizamos un objeto `RidgeClassifier`, que fija implícitamente la regularización L2. En este caso, la constante de regularización se llama alpha, considerando el espacio de búsqueda como 9 puntos en el espacio logarítmico $[0, 5]$.
+
+```python
+{"clf": [RidgeClassifier(random_state = SEED,
+                             max_iter = max_iter)],
+ "clf__alpha": np.logspace(0, 5, 9)}
+```
+
+En este caso se pretende minimizar el error cuadrático de regresión (añadiendo regularización L2): $$ L_{lin}(w) = \frac{1}{N} \sum_{n=1}^N (y_n - w^Tx_n)^2. $$ Para ello se utiliza la técnica de la Pseudoinversa basada en la descomposición SVD de la matriz de datos, obteniendo una solución en forma cerrada y sin seguir un procedimiento iterativo. Se ha elegido esta técnica en lugar de SGD porque el tiempo de ejecución es más reducido y las soluciones obtenidas son suficientemente buenas.
+
+### SVM Lineal
+
+Finalmente consideramos las máquinas de soporte vectorial (SVM) lineales (sin usar kernel) utilizando el objeto `SGDClassifier` con regularización L2, y tomando alpha con 7 puntos en el espacio logarítmico $[-5, 1]$.
+
+```python
+{"clf": [SGDClassifier(random_state = SEED,
+                           penalty = 'l2',
+                           max_iter = max_iter,
+                           eta0 = 0.1)],
+ "clf__learning_rate": ['optimal', 'invscaling', 'adaptive'],
+ "clf__alpha": np.logspace(-5, 1, 7)}
+```
+
+La técnica usada es SGD, de manera que minimizamos el error hinge junto con la regularización L2: $$L_{svm}(w) = \frac{1}{n} \max(0, 1 - y_i f(x_i))$$ En este caso se ha considerado como hiperparámetro el tipo de tasa de aprendizaje, fijando la inicial (`eta0`) como 0.1: `optimal` (tasa escogida por heurística), `adaptive` (inicial, y decrementa cuando el error no decrementa) y `invscaling` (inicial, y decrementa dividiendo por la raiz del nº de iteraciones).
+
+## Modelos no lineales
+
+### Random Forest (RF)
+
+Consideramos primero
+
+### Boosting
+
+### Multilayer Perceptron (MLP)
+
+### K-Nearest Neighbors (KNN)
+
+### Funciones de Base Radial (RBF)
+
 
 # Análisis de resultados y estimación del error
 
