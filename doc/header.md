@@ -31,7 +31,7 @@ header-includes:
   - \usepackage{stmaryrd}
   - \newcommand{\overbar}[1]{\mkern 1.5mu\overline{\mkern-1.5mu#1\mkern-1.5mu}\mkern 1.5mu}
   - \usepackage{unicode-math}
-  - \setmathfont{Libertinus Math}
+  #- \setmathfont{Libertinus Math}
 ---
 
 \decimalpoint
