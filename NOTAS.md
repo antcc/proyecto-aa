@@ -121,6 +121,7 @@ while true; do make; inotifywait -e modify,close_write memoria.md; done
 
 # Enfoque
 
+- MOSTRAR ANÁLISIS ESTADÍSTICO DEL PAPER
 - Leer artículo de los autores. Repetir experimentos que hacen.
 - Mirar los parámetros por defecto que ponen.
 - Mirar las métricas que usan. usar varias métricas.

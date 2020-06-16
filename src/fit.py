@@ -994,6 +994,10 @@ def compare(clfs, X_train, X_test, y_train, y_test):
                 + clf['clf'].__class__.__name__ + "...")
             vs.confusion_matrix(clf, X_test, y_test, SAVE_FIGURES, IMG_PATH)
 
+    # Mostramos gráfica de AUC del modelo ganador (RandomForest)
+    print("Mostrando la curva ROC para el clasificador ganador...")
+    vs.plot_auc(clfs[1], X_test, y_test, SAVE_FIGURES, IMG_PATH)
+
 #
 # FUNCIÓN PRINCIPAL
 #

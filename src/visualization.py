@@ -25,7 +25,7 @@ from matplotlib import pyplot as plt
 from matplotlib import cm
 
 from sklearn.model_selection import learning_curve
-from sklearn.metrics import plot_confusion_matrix
+from sklearn.metrics import plot_confusion_matrix, plot_roc_curve
 from sklearn.manifold import TSNE
 
 #
@@ -500,3 +500,20 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
         else:
             plt.show()
         wait(save_figures)
+
+def plot_auc(clf, X, y, save_figures = False, img_path = ""):
+    """Muestra la curva ROC para un clasificador ya entrenado.
+         - clf: clasificador.
+         - X: características.
+         - y: etiquetas."""
+
+    fig, ax = plt.subplots(figsize = (8, 6))
+    name = clf['clf'].__class__.__name__
+    plot_roc_curve(clf, X, y, name = name, ax = ax)
+    ax.plot([0, 1], [0, 1], color = 'navy', lw = 2, linestyle = '--')
+
+    if save_figures:
+        plt.savefig(img_path + "auc_" + name + ".png")
+    else:
+        plt.show()
+    wait(save_figures)
