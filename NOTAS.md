@@ -83,8 +83,6 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 
 - **Perceptron Multicapa**: Considerar clases de funciones definida por arquitecturas con 3 capas y un número de unidades por capa en el rango 50-100. Considerar el número de neuronas por capa como un hiperparámetro.
 
-- **Máquina de Soporte de Vectores (SVM)**: se recomienda el núcleo RBF-Gaussiano o el polinomial. Encontrar el mejor valor para los parámetros libres hasta una precisión de 2 cifras (enteras o decimales).
-
 - **Boosting**: Se recomienda que para clasificación se usen funciones “stamp”.
 
 - **Random Forest**: Usar como hiperparámetros los valores que por defecto se dan en teoría y experimentar para obtener el número de árboles adecuado.
@@ -111,50 +109,27 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 - Justificar elección de funciones y de TODOS los parámetros (incluidos por defecto).
 - Explicar con detalle el funcionamiento de pipelines y gridSearch.
 - Pueden usarse técnicas de reducción de dimensionalidad, ej. PCA o Random Projection si se justifica que su uso mejora los resultados.
-- El uso de resultados y enfoques existentes en la literatura sobre las bases de datos está permitido y de hecho se alienta, siempre y cuando se deja manifiestamente claro que uso se hace de dicha información/resultado y cual es la aportación del proyecto sobre la misma.
-- Incluir las referencias de la bibliografía usada.
+
 - Compilación con `make` en la carpeta `doc`. Compilación continua:
 ```
 while true; do make; inotifywait -e modify,close_write memoria.md; done
 ```
-- Weight balance como parámetro a los clasificadores
-- https://github.com/interpretml/interpret
 - **Importante:** poner versión de sklearn en la memoria.
 
 
-# Dudas (para Nicolás)
-
-- Hay que comparar todos los modelos que elijamos entre sí? Primero se elije el mejor dentro de su clase y luego se comparan todos? Vale compararlos todos en el mismo test? explicación del error
-- Para comparar y cotas, dos procedimientos:
-a) Realizar un division train/test, ajustar el mejor modelo en cada caso por CV con train, evaluar en test. Comparar los N resultados finales en test, elegir el mejor, calcular cota con esos datos.
-b) Realizar division train/test/val, ajustar mejor modelo en cada caso por CV en train, comparar en validacion todos los modelos, error de cv, finalmente evaluar solo el mejor en test y dar esa cota.
-- Se pueden usar distintos tipos de preprocesado para distintas clases de modelos? ¿usar polinomios en unas si y en otras no?
-- Dentro de la clase lineal entran los SVM lineales?
 
 
 # Enfoque
 
-- IMPORTANTE: Usar ensembles para conseguir más precisión. Técnicas de bagging/boosting, samplear de los datos de forma aleatoria y estratificada para cada clasificador.
 - Leer artículo de los autores. Repetir experimentos que hacen.
 - Mirar los parámetros por defecto que ponen.
 - Mirar las métricas que usan. usar varias métricas.
 - Gráfica de acc en CV en función de alguna cosa (regularización por ej)
-- Normalización vs estandarización
-- Añadir más técnicas reducción dimensionalidad (sklearn.manifold.SpectralEmbedding)
 - Comentar que los valores de ccp_alpha para RandomForest se han obtenido llamando a
 `DecisionTreeClassifier(max_depth = 20).cost_complexity_pruning_path(X_train, y_train)["ccp_alphas"]`. El criterio de selección de predictores por defecto es sqrt.
 - Ventajas e inconvenientes de cada modelo. Pérdida de interpretabilidad, tiempo, etc.
-- Comentar algo de outliers (en una segunda vuelta, pero no eliminar)
 - Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
 - Elegir el modelo en cada caso: si hay variables numéricas, elijo tal, si no, cual..
-- Estructurar código para que por defecto solo se haga train/test en los modelos finales. Permitir realizar el proceso completo
-- de elección de parámetros y modelos etc.
-
-Importancia de caracts:
-Indices: [25 24 39 26 28 38 41 19 22 37  2  4 42  1 27  9 40 23 44 18 43 48 51 45
-  5 47 46 36 20 12  7 55  0 52 53 49 54  6 57 56 50 21 10 16 15 14  8 34
- 17 35 31 13 30 32 33 29 11  3]
-
 
 # Formato de la documentación
 
@@ -162,5 +137,3 @@ Indices: [25 24 39 26 28 38 41 19 22 37  2  4 42  1 27  9 40 23 44 18 43 48 51 4
 - Rellenar anexo con funcionamiento del código? Listings?
 - Paquetes de latex en `header.md`
 - Números con dólares.
-
-# Enlaces de interés

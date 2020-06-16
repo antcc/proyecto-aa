@@ -207,9 +207,9 @@ PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_ANALYSIS = False
-SAVE_FIGURES = False
+SAVE_FIGURES = True
 IMG_PATH = "../doc/img/"
-SHOW = Show.NONE
+SHOW = Show.ALL
 
 #
 # FUNCIONES AUXILIARES
