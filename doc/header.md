@@ -31,6 +31,7 @@ header-includes:
   - \usepackage{stmaryrd}
   - \newcommand{\overbar}[1]{\mkern 1.5mu\overline{\mkern-1.5mu#1\mkern-1.5mu}\mkern 1.5mu}
   - \usepackage{unicode-math}
+  - \usepackage[ruled,vlined]{algorithm2e}
   #- \setmathfont{Libertinus Math}
 ---
 
