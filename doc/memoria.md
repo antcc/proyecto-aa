@@ -457,6 +457,9 @@ Resultados de la mejor configuración de cada modelo en training/test en \ref{ta
 
 # Conclusiones y estimación del error
 
+- Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
+- Repaso por encima de todos.
+
 [@fernandes2015]
 
 # Anexo: Funcionamiento del código {.unnumbered}
