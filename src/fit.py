@@ -476,9 +476,10 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
         print("Mostrando resultado de preanálisis para RBF...")
         vs.plot_analysis(best_clf_rbf, "RBF",
-            alphas, "alpha", ks, "k", x_logscale = True, reverse_order = True,
+            alphas, "alpha", ks, "k",
             save_figures = SAVE_FIGURES,
             img_path = IMG_PATH)
+
 
     return best_clfs
 
@@ -788,14 +789,13 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
         print("Mostrando resultado de preanálisis para RBF...")
         vs.plot_analysis(best_clf_rbf, "RBF",
-            ks, "k", alphas, "alpha", x_logscale = True,
+            alphas, "alpha", ks, "k",
             save_figures = SAVE_FIGURES,
             img_path = IMG_PATH)
-
     clfs_rbf = [
         {"clf": [RBFNetworkClassifier(random_state = SEED)],
-         "clf__k": [5, 10, 25, 100],
-         "clf__alpha": [0.001, 0.1, 1.0]}]
+         "clf__k": [50, 100, 200, 300, 400],
+         "clf__alpha": [0.0, 1e-10, 1e-5, 1e-3]}]
 
     # Ajustamos el mejor modelo
     print("-> AJUSTE\n")
