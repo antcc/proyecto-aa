@@ -124,9 +124,12 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
     def _choose_centers(self, X):
         """Usando k-means escoge los k centros de los datos."""
 
+        init_size = 3 * self.k if 3 * self.batch_size <= self.k else None
+
         kmeans = MiniBatchKMeans(
             n_clusters = self.k,
             batch_size = self.batch_size,
+            init_size = init_size,
             random_state = self.random_state)
         kmeans.fit(X)
         self.centers = kmeans.cluster_centers_
@@ -202,14 +205,14 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
 SEED = 2020
 N_CLASSES = 2
 CLASS_THRESHOLD = 1400
-DO_MODEL_SELECTION = False
+DO_MODEL_SELECTION = True
 PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
-SHOW_ANALYSIS = False
+SHOW_ANALYSIS = True
 SAVE_FIGURES = True
 IMG_PATH = "../doc/img/"
-SHOW = Show.ALL
+SHOW = Show.NONE
 
 #
 # FUNCIONES AUXILIARES
@@ -453,6 +456,31 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
     X_train_full = np.vstack((X_train, X_val))
     y_train_full = np.concatenate((y_train, y_val))
     best_clfs = []
+
+    # Preanálisis de modelos de RBF
+    if SHOW_ANALYSIS:
+        ks = [5, 10, 25, 50, 100, 200, 300, 400]
+        alphas = [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]
+        clfs_rbf = [
+            {"clf": [RBFNetworkClassifier(random_state = SEED)],
+             "clf__k": ks,
+             "clf__alpha": alphas}]
+
+        print("-> PREANÁLISIS: valor de k y constante de regularización\n")
+        best_clf_rbf = fit_cv(
+            X_val, y_val,
+            clfs = clfs_rbf,
+            model_class = Model.SIMILARITY,
+            n_jobs = -1,
+            show_cv = False)
+
+        print("Mostrando resultado de preanálisis para RBF...")
+        vs.plot_analysis(best_clf_rbf, "RBF",
+            ks, "k", alphas, "alpha", x_logscale = True,
+            save_figures = SAVE_FIGURES,
+            img_path = IMG_PATH)
+
+    return best_clfs
 
     #
     # CLASIFICADOR LINEAL
@@ -743,28 +771,31 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Preanálisis de modelos de RBF
     if SHOW_ANALYSIS:
-        ks = [10, 25, 50, 100, 150, 200, 250, 300]
+        ks = [5, 10, 25, 50, 100, 200, 300]
+        alphas = [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]
         clfs_rbf = [
             {"clf": [RBFNetworkClassifier(random_state = SEED)],
-             "clf__k": ks}]
+             "clf__k": ks,
+             "clf__alpha": alphas}]
 
-        print("-> PREANÁLISIS: valor de k\n")
+        print("-> PREANÁLISIS: valor de k y constante de regularización\n")
         best_clf_rbf = fit_cv(
             X_val, y_val,
             clfs = clfs_rbf,
             model_class = Model.SIMILARITY,
-            n_jobs = 2,
+            n_jobs = -1,
             show_cv = False)
 
         print("Mostrando resultado de preanálisis para RBF...")
         vs.plot_analysis(best_clf_rbf, "RBF",
-            ks, "k", save_figures = SAVE_FIGURES,
+            ks, "k", alphas, "alpha", x_logscale = True,
+            save_figures = SAVE_FIGURES,
             img_path = IMG_PATH)
 
     clfs_rbf = [
         {"clf": [RBFNetworkClassifier(random_state = SEED)],
-         "clf__k": [200, 250, 300],
-         "clf__alpha": np.logspace(-10, 0, 5)}]
+         "clf__k": [5, 10, 25, 100],
+         "clf__alpha": [0.001, 0.1, 1.0]}]
 
     # Ajustamos el mejor modelo
     print("-> AJUSTE\n")
