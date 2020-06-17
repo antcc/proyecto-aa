@@ -166,8 +166,7 @@ def plot_feature_importance(importances, n, pca, save_figures = False, img_path 
 
 def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
                         n_jobs = None, train_sizes = np.linspace(.1, 1.0, 5),
-                        title = "", plot_fit_time = True,
-                        plot_score_time = False, save_figures = False,
+                        title = "", save_figures = False,
                         img_path = ""):
     """
     Generate 3 plots: the test and training learning curve, the training
@@ -229,12 +228,6 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
 
     title : string
         Title of plot.
-
-    plot_fit_time : boolean
-        Whether to plot a graph of fit_time vs training examples.
-
-    plot_score_time : boolean
-        Whether to plot a graph of score vs fit_times.
     """
 
     fig, axes = plt.subplots(1, 3, figsize = (16, 6))
@@ -284,24 +277,22 @@ def plot_learning_curve(estimator, X, y, scoring, ylim = None, cv = None,
     axes[0].legend(loc="best")
 
     # Plot n_samples vs fit_times
-    if plot_fit_time:
-        axes[1].grid()
-        axes[1].plot(train_sizes, fit_times_mean, 'o-')
-        axes[1].fill_between(train_sizes, fit_times_mean - fit_times_std,
-                             fit_times_mean + fit_times_std, alpha=0.1)
-        axes[1].set_xlabel("Número de ejemplos de entrenamiento")
-        axes[1].set_ylabel("Tiempos de entrenamiento (s)")
-        axes[1].set_title("Escalabilidad del modelo")
+    axes[1].grid()
+    axes[1].plot(train_sizes, fit_times_mean, 'o-')
+    axes[1].fill_between(train_sizes, fit_times_mean - fit_times_std,
+                         fit_times_mean + fit_times_std, alpha=0.1)
+    axes[1].set_xlabel("Número de ejemplos de entrenamiento")
+    axes[1].set_ylabel("Tiempos de entrenamiento (s)")
+    axes[1].set_title("Escalabilidad del modelo")
 
     # Plot fit_time vs score
-    if plot_score_time:
-        axes[2].grid()
-        axes[2].plot(fit_times_mean, test_scores_mean, 'o-')
-        axes[2].fill_between(fit_times_mean, test_scores_mean - test_scores_std,
-                             test_scores_mean + test_scores_std, alpha=0.1)
-        axes[2].set_xlabel("Tiempos de entrenamiento (s)")
-        axes[2].set_ylabel(score_name)
-        axes[2].set_title("Desempeño del modelo")
+    axes[2].grid()
+    axes[2].plot(fit_times_mean, test_scores_mean, 'o-')
+    axes[2].fill_between(fit_times_mean, test_scores_mean - test_scores_std,
+                         test_scores_mean + test_scores_std, alpha=0.1)
+    axes[2].set_xlabel("Tiempos de entrenamiento (s)")
+    axes[2].set_ylabel(score_name)
+    axes[2].set_title("Desempeño del modelo")
 
     if save_figures:
         plt.savefig(img_path + "learning_curve_" + title + ".png")

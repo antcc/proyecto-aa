@@ -48,7 +48,7 @@ También podemos intentar visualizar el conjunto de datos en dos dimensiones, em
 \label{fig:tsne}
 \end{figure}
 
-Vemos que no obtenemos demasiada información positiva. No se aprecian *clústers* diferenciados, lo que nos lleva a pensar que no vamos a obtener unos resultados excesivamente buenos con los datos de los que disponemos; no tienen a priori suficiente poder de discriminación para separar completamente las clases.
+Vemos que no obtenemos demasiada información positiva. No se aprecian *clústers* diferenciados, lo que nos lleva a pensar que no vamos a obtener unos resultados excesivamente buenos con los datos de los que disponemos. No nos sorprenderá si a priori no conseguimos una calidad muy alta, y tendremos que realizar ajustes finos de hiperparámetros y eventuales transformaciones del espacio de entrada para aumentar el rendimiento de los modelos.
 
 ## Análisis de las variables
 
@@ -181,7 +181,7 @@ Ya que las clases están prácticamentes balanceadas, la métrica que usaremos s
 
 Sabemos que esta medida de error se encuentra en el intervalo $[0,1]$, siendo $0$ lo mejor posible y $1$ lo peor. Se trata de una medida de fácil interpretación; podemos expresarla en porcentaje o invertirla, de forma que $1 - E_{class}$ es lo que se conoce como el *accuracy* del modelo. Presentaremos los resultados utilizando esta última descripción ya que parece más ilustrativa.
 
-También consideraremos una métrica segundaria de error: el área bajo la curva ROC (AUC). Esta métrica que nos permite comparar el desempeño de los clasificadores en tanto que varía el umbral de clasificación (aquel valor a partir del cual se considera que un ejemplo pertenece a la clase positiva), proporcionando una medida del poder de discriminación que tiene el clasificador. Para computar esta métrica, se obtiene primero la curva ROC representando el ratio de verdaderos positivos frente al ratio de falsos positivos, para todos los posibles umbrales de clasificación, y finalmente se toma el área bajo esta curva. Esta métrica está también en $[0, 1]$, y será mejor cuanto más alta sea.
+Consideraremos además una métrica secundaria de error, también de uso muy extendido: el área bajo la curva ROC (AUC). Esta métrica que nos permite comparar el desempeño de los clasificadores en tanto que varía el umbral de clasificación (aquel valor a partir del cual se considera que un ejemplo pertenece a la clase positiva), proporcionando una medida del poder de discriminación que tiene el clasificador. Para computar esta métrica, se obtiene primero la curva ROC representando el ratio de verdaderos positivos frente al ratio de falsos positivos, para todos los posibles umbrales de clasificación, y finalmente se toma el área bajo esta curva. Esta métrica está también en $[0, 1]$, y será mejor cuanto más alta sea.
 
 Todos los clasificadores empleados tienen internamente una función que asigna un valor numérico a cada punto para cada clase, ya sean probabilidades (`predict_proba`) u otros valores propios de cada clasificador (`decision_function`). Son estas funciones las que se emplean en el cálculo de la métrica AUC, materializado mediante una llamada a la función `roc_auc_score`.
 
@@ -229,7 +229,7 @@ Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentr
 
 Hemos considerado L2 para los modelos lineales ya que queremos generalizarlos para bajar la varianza en pos de extraer un mayor valor de la métrica, a costa de no rebajar el tiempo de computación (reduciendo variables con L1), pero no nos importa puesto que el tiempo de entrenamiento es razonable y preferimos aumentar el acierto.
 
-TODO poner matriz de correlación. hablar de pca + poly.
+TODO poner matriz de correlación. hablar de pca + poly. COMENTAR QUE SE HA HECHO SIN RPEPROCESADO Y SALE PEOR; DECIR POR QUE HACEMO AUMENTO. COMENTAR CLASE DE FUNCIONES.
 TODO nº iteraciones
 
 ### Regresión Logística {.unlisted .unnumbered}
@@ -447,7 +447,7 @@ Resultados de la mejor configuración de cada modelo en training/test en \ref{ta
  Boosting & 71.21 & 66.44 & 78.61 & \textbf{72.84} \\
  MLP & 66.04 & 64.83 & 71.77 & 70.25 \\
  KNN & --- & 63.95 & --- & 68.80 \\
- RBF-Network & 65.96 & 64.84 & 71.32 & 70.08 \\
+ RBF-Network & 65.93 & 64.83 & 71.4 & 70.14 \\
  Aleatorio & 50.43 & 50.58 & 50.08 & 49.78 \\ [1ex]
  \hline
  \end{tabular}

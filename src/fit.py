@@ -25,8 +25,6 @@ import numpy as np
 from timeit import default_timer
 import os
 from enum import Enum
-from joblib import Memory
-from shutil import rmtree
 
 from pandas import read_csv
 
@@ -205,13 +203,12 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
 SEED = 2020
 N_CLASSES = 2
 CLASS_THRESHOLD = 1400
-DO_MODEL_SELECTION = True
-PATH = "../datos/"
+DO_MODEL_SELECTION = False
+PATH = "datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
-CACHEDIR = "cachedir"
-SHOW_ANALYSIS = True
+SHOW_ANALYSIS = False
 SAVE_FIGURES = False
-IMG_PATH = "../doc/img/"
+IMG_PATH = "img/"
 SHOW = Show.NONE
 
 #
@@ -379,7 +376,7 @@ def preprocess_graphs(X):
 def fit_cv(X_train, y_train, clfs,
         model_class, selection_strategy = Selection.NONE,
         randomized = False, cv_steps = 20,
-        n_jobs = -1, show_cv = False):
+        n_jobs = -1, show_cv = True):
     """Ajuste de varios modelos de clasificación para un conjunto de datos, eligiendo
        por validación cruzada el mejor de ellos dentro de una clase concreta.
          - X_train, y_train: datos de entrenamiento.
@@ -391,10 +388,9 @@ def fit_cv(X_train, y_train, clfs,
          - n_jobs: número de hebras para ejecuciones en paralelo.
          - show_cv: controla si se muestra un ranking con los mejores resultados en CV."""
 
-    # Construimos un pipeline de preprocesado + clasificación (placeholder) con caché
+    # Construimos un pipeline de preprocesado + clasificación (placeholder)
     preproc = preprocess_pipeline(model_class, selection_strategy)
-    memory = Memory(location = CACHEDIR, verbose = 0)
-    pipe = Pipeline(preproc + [("clf", DummyClassifier())], memory = memory)
+    pipe = Pipeline(preproc + [("clf", DummyClassifier())])
 
     if show_cv:
         print("Comparando modelos por validación cruzada... ", end = "", flush = True)
@@ -437,9 +433,6 @@ def fit_cv(X_train, y_train, clfs,
             {k: model[k] for k in model.keys() if k != 'clf'}))
         print("* Accuracy en CV: {:.3f}%\n".format(100.0 * best_clf.best_score_))
 
-    # Limpiamos la caché
-    memory.clear(warn = False)
-
     return best_clf
 
 def fit_model_selection(X_train, X_val, y_train, y_val):
@@ -453,35 +446,10 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
        de búsqueda de algunos parámetros críticos, utilizando para ello un
        pequeño conjunto de validación."""
 
+    # Concatenamos entrenamiento y validación para reentrenar después
     X_train_full = np.vstack((X_train, X_val))
     y_train_full = np.concatenate((y_train, y_val))
     best_clfs = []
-
-    # Preanálisis de modelos de RBF
-    if SHOW_ANALYSIS:
-        ks = [5, 10, 25, 50, 100, 200, 300, 400]
-        alphas = [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]
-        clfs_rbf = [
-            {"clf": [RBFNetworkClassifier(random_state = SEED)],
-             "clf__k": ks,
-             "clf__alpha": alphas}]
-
-        print("-> PREANÁLISIS: valor de k y constante de regularización\n")
-        best_clf_rbf = fit_cv(
-            X_val, y_val,
-            clfs = clfs_rbf,
-            model_class = Model.SIMILARITY,
-            n_jobs = -1,
-            show_cv = False)
-
-        print("Mostrando resultado de preanálisis para RBF...")
-        vs.plot_analysis(best_clf_rbf, "RBF",
-            alphas, "alpha", ks, "k",
-            save_figures = SAVE_FIGURES,
-            img_path = IMG_PATH)
-
-
-    return best_clfs
 
     #
     # CLASIFICADOR LINEAL
@@ -772,12 +740,19 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
     # Preanálisis de modelos de RBF
     if SHOW_ANALYSIS:
-        ks = [5, 10, 25, 50, 100, 200, 300]
+        ks = [5, 10, 25, 50, 100, 200, 300, 400]
         alphas = [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]
         clfs_rbf = [
             {"clf": [RBFNetworkClassifier(random_state = SEED)],
              "clf__k": ks,
              "clf__alpha": alphas}]
+
+        """
+        NOTA: Es posible que para alguna combinación de valores aparezca un
+        warning sobre el mal condicionamiento de la matriz que se usa en la
+        regresión lineal. Esto simplemente nos dice que esos parámetros no
+        son adecuados para este modelo.
+        """
 
         print("-> PREANÁLISIS: valor de k y constante de regularización\n")
         best_clf_rbf = fit_cv(
@@ -792,10 +767,12 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
             alphas, "alpha", ks, "k",
             save_figures = SAVE_FIGURES,
             img_path = IMG_PATH)
+
+    # Escogemos modelos de RBF
     clfs_rbf = [
         {"clf": [RBFNetworkClassifier(random_state = SEED)],
          "clf__k": [50, 100, 200, 300, 400],
-         "clf__alpha": [0.0, 1e-10, 1e-5, 1e-3]}]
+         "clf__alpha": [0.0, 1e-10, 1e-5]}]
 
     # Ajustamos el mejor modelo
     print("-> AJUSTE\n")
@@ -946,7 +923,7 @@ def fit_models(X_train, y_train):
     preproc = preprocess_pipeline(Model.SIMILARITY, Selection.NONE)
     clf_rbf = Pipeline(preproc
         + [("clf", RBFNetworkClassifier(random_state = SEED,
-                                        k = 250,
+                                        k = 300,
                                         alpha = 1e-10))])
 
     print("Entrenando clasificador RBF... ", end = "", flush = True)
@@ -981,11 +958,15 @@ def fit_models(X_train, y_train):
         print("Calculando y mostrando curvas de aprendizaje...\n")
         for clf in clfs:
             name = clf['clf'].__class__.__name__
+            n_jobs = -1
+            if name == "RBFNetworkClassifier":
+                n_jobs = 1
+
             print("Clasificador: {}".format(name))
             vs.plot_learning_curve(
                 clf,
                 X_train, y_train,
-                n_jobs = -1, cv = 5,
+                n_jobs = n_jobs, cv = 5,
                 scoring = 'accuracy',
                 title = name,
                 save_figures = SAVE_FIGURES,
@@ -1019,17 +1000,16 @@ def compare(clfs, X_train, X_test, y_train, y_test):
                 [y_train, y_test],
                 ["training", "test"])
 
-        if SHOW != Show.NONE:
-            # Matriz de confusión
-            print("Mostrando matriz de confusión en test para "
-                + clf['clf'].__class__.__name__ + "...")
-            vs.confusion_matrix(clf, X_test, y_test, SAVE_FIGURES, IMG_PATH)
-
     if SHOW != Show.NONE:
         # Mostramos gráfica de AUC del mejor modelo (RandomForest) y
         # del peor modelo (KNN)
         print("Mostrando la curva ROC para el mejor y el peor...")
         vs.plot_auc([clfs[1], clfs[-3]], X_test, y_test, SAVE_FIGURES, IMG_PATH)
+
+        # Mostramos matriz de confusión para el modelo ganador
+        print("Mostrando matriz de confusión en test para "
+            + clfs[1]['clf'].__class__.__name__ + "...")
+        vs.confusion_matrix(clfs[1], X_test, y_test, SAVE_FIGURES, IMG_PATH)
 
 #
 # FUNCIÓN PRINCIPAL
@@ -1116,17 +1096,9 @@ def main():
 
     compare(clfs, X_train_full, X_test, y_train_full, y_test)
 
-    #
-    # ESTADÍSTICAS Y LIMPIEZA
-    #
-
     # Imprimimos tiempo total de ejecución
     elapsed = default_timer() - start
     print("Tiempo total de ejecución: {:.3f} min".format(elapsed / 60.0))
-
-    # Eliminamos directorio de caché
-    if os.path.isdir(CACHEDIR):
-        rmtree(CACHEDIR)
 
 if __name__ == "__main__":
     main()

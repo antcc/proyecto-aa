@@ -1,3 +1,42 @@
+------- PROYECTO FINAL: AJUSTE DE MODELOS DE CLASIFICACIÓN -------
+
+Leyendo datos de OnlineNewsPopularity.csv... Hecho.
+
+--- AJUSTE DE MODELO LINEAL ---
+
+Entrenando clasificador lineal... Hecho.
+Tiempo de entrenamiento: 0.139 min
+
+--- AJUSTE DE RANDOM FOREST ---
+
+Entrenando clasificador Random Forest... Hecho.
+Tiempo de entrenamiento: 0.511 min
+
+--- AJUSTE DE MODELO DE BOOSTING ---
+
+Entrenando clasificador Gradient Boosting... Hecho.
+Tiempo de entrenamiento: 0.503 min
+
+--- AJUSTE DE MODELO MLP ---
+
+Entrenando clasificador MLP... Hecho.
+Tiempo de entrenamiento: 0.769 min
+
+--- AJUSTE DE MODELO KNN ---
+
+Entrenando clasificador KNN... Hecho.
+Tiempo de entrenamiento: 0.006 min
+
+--- AJUSTE DE MODELO DE REDES DE FUNCIONES DE BASE RADIAL ---
+
+Entrenando clasificador RBF... Hecho.
+Tiempo de entrenamiento: 0.377 min
+
+--- AJUSTE DE MODELO ALEATORIO ---
+
+Entrenando clasificador aleatorio... Hecho.
+Tiempo de entrenamiento: 0.000 min
+
 --- COMPARACIÓN DE LOS MEJORES MODELOS ---
 
 --> LogisticRegression(C=0.1, max_iter=1000, random_state=2020) <--
@@ -36,12 +75,12 @@ Número de variables usadas: 58
 * Accuracy en test: 63.948%
 * AUC en test: 68.798%
 
---> RBFNetworkClassifier(alpha=1e-10, k=250, random_state=2020) <--
+--> RBFNetworkClassifier(alpha=1e-10, k=300, random_state=2020) <--
 Número de variables usadas: 58
-* Accuracy en training: 65.960%
-* AUC en training: 71.316%
-* Accuracy en test: 64.839%
-* AUC en test: 70.077%
+* Accuracy en training: 65.928%
+* AUC en training: 71.396%
+* Accuracy en test: 64.831%
+* AUC en test: 70.135%
 
 --> DummyClassifier(strategy='stratified') <--
 Número de variables usadas: 58
@@ -50,4 +89,4 @@ Número de variables usadas: 58
 * Accuracy en test: 50.580%
 * AUC en test: 49.777%
 
-Tiempo total de ejecución: 3.140 min
+Tiempo total de ejecución: 3.457 min
