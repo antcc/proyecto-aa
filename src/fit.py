@@ -210,7 +210,7 @@ PATH = "../datos/"
 DATASET_NAME = "OnlineNewsPopularity.csv"
 CACHEDIR = "cachedir"
 SHOW_ANALYSIS = True
-SAVE_FIGURES = True
+SAVE_FIGURES = False
 IMG_PATH = "../doc/img/"
 SHOW = Show.NONE
 
@@ -476,7 +476,7 @@ def fit_model_selection(X_train, X_val, y_train, y_val):
 
         print("Mostrando resultado de preanálisis para RBF...")
         vs.plot_analysis(best_clf_rbf, "RBF",
-            ks, "k", alphas, "alpha", x_logscale = True,
+            alphas, "alpha", ks, "k", x_logscale = True, reverse_order = True,
             save_figures = SAVE_FIGURES,
             img_path = IMG_PATH)
 
