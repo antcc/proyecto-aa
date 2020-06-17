@@ -412,7 +412,7 @@ def plot_features(features, names, X, y,
 
 def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
         hyps2 = None, hyp_name2 = None,
-        x_logscale = False, test_time = False,
+        x_logscale = False, test_time = False, reverse_order = False,
         save_figures = False, img_path = ""):
     """Muestra una evaluación de 1 o 2 hiperparámetros de un modelo
        durante cross-validation.
@@ -421,7 +421,9 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
          - hyps1, hyp_name1: primer hiperparámetro y su nombre.
          - hyps2, hyp_name2: segundo hiperparámetro y su nombre.
          - x_logscale: si se muestra escala logarítmica en el eje X.
-         - test_time: si se mide el tiempo de evaluación en 'test'."""
+         - test_time: si se mide el tiempo de evaluación en 'test'.
+         - reverse_order: si cambiar la dependencia de gráficas para dos
+                          hiperparámetros."""
 
     # Si tenemos dos hiperparametros
     two_hyp = hyps2 is not None
@@ -448,18 +450,31 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
 
     # cv-acc/time y heatmap
     if two_hyp:
-        # Resultado cv-acc/time para hyp2 fijando hyp1
-        for i in range(len(hyps1)):
-            ax1.plot(hyps2, cv_acc[i], "-o", label = str(hyps1[i]))
-            ax2.plot(hyps2, cv_time[i], "-o", label = str(hyps1[i]))
+        # Fijamos por defecto hyp1, variando hyp2; al revés con reverse_order
+        if reverse_order:
+            hyps_fijo = hyps2
+            hyps_fijo_name = hyp_name2
+            hyps_var = hyps1
+            hyps_var_name = hyp_name1
+            cv_acc = cv_acc.T
+            cv_time = cv_time.T
+        else:
+            hyps_fijo = hyps1
+            hyps_fijo_name = hyp_name1
+            hyps_var = hyps2
+            hyps_var_name = hyp_name2
+
+        for i in range(len(hyps_fijo)):
+            ax1.plot(hyps_var, cv_acc[i], "-o", label = str(hyps_fijo[i]))
+            ax2.plot(hyps_var, cv_time[i], "-o", label = str(hyps_fijo[i]))
             # Nombre ejes
-            ax1.set_xlabel(hyp_name2)
+            ax1.set_xlabel(hyps_var_name)
             ax1.set_ylabel("cv-acc")
-            ax2.set_xlabel(hyp_name2)
+            ax2.set_xlabel(hyps_var_name)
             ax2.set_ylabel("fit time (s)")
         # Leyenda
-        ax1.legend(title = hyp_name1, ncol = 2)
-        ax2.legend(title = hyp_name1, ncol = 2)
+        ax1.legend(title = hyps_fijo_name, ncol = 2)
+        ax2.legend(title = hyps_fijo_name, ncol = 2)
         fig.tight_layout()
 
         if save_figures:
@@ -467,6 +482,11 @@ def plot_analysis(clf_cv, clf_name, hyps1, hyp_name1,
         else:
             plt.show()
         wait(save_figures)
+
+        # Devolvemos estado original
+        if reverse_order:
+            cv_acc = cv_acc.T
+            cv_time = cv_time.T
 
         # Nuevo plot para mapa de calor
         plt.figure(figsize = (8, 6))
