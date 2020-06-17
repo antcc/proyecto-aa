@@ -91,11 +91,7 @@ Es necesario comparar UN modelo lineal y al menos DOS de los siguientes; en cada
 
 # Pasos a seguir
 
-1. Definición del problema a resolver y enfoque elegido.
 2. Argumentos a favor de la elección de los modelos.
-3. Codificación de los datos de entrada para hacerlos útiles a los algoritmos.
-4. Valoración del interés de las variables para el problema y selección de un subconjunto (en su caso).
-5. Normalización de las variables (en su caso)
 6. Justificación de la función de pérdida usada.
 7. Selección de las técnica (parámetrica) y valoración de la idoneidad de la misma frente a otras alternativas
 8. Aplicación de la técnica especificando claramente que algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.

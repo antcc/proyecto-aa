@@ -1,102 +1,238 @@
 # Introducción
 
-En esta práctica perseguimos ajustar el mejor modelo lineal en dos conjuntos de datos dados, para resolver un problema de clasificación y otro de regresión. En ambos casos seguiremos una estrategia común que nos llevará finalmente a elegir un modelo y estimar su error.
+En esta práctica perseguimos ajustar el mejor modelo dentro de una clase de modelos, para resolver un problema de clasificación binaria. Para ello seguiremos los siguientes pasos:
 
 1. Analizaremos la bases de datos y entenderemos el contexto del problema a resolver.
 2. Preprocesaremos los datos de forma adecuada para trabajar con ellos.
-3. Elegiremos una clase de hipótesis (lineal) para resolver el problema.
-4. Fijaremos algunos modelos concretos y seleccionaremos el mejor según algún criterio.
-5. Estimaremos el error del modelo.
+3. Elegiremos unas clases de hipótesis para resolver el problema.
+4. Fijaremos algunos modelos concretos dentro de cada clase y seleccionaremos el mejor de cada una según algún criterio.
+5. Compararemos los mejores modelos de cada clase y seleccionaremos el mejor de todos.
+6. Estimaremos el error del modelo final.
 
 Trabajamos en su mayoría con las funciones del paquete `scikit-learn`, apoyándonos cuando sea necesario en otras librerías como `numpy`, `matplotlib` ó `pandas`. El código de la práctica se ha estructurado en dos *scripts* de `Python` debidamente comentados:
 
-- En `fit.py` se resuelve el problema de regresión.
-- En `visualization.py` se recogen todas las funciones de visualización de gráficas, tanto comunes como propias de cada problema.
+- En `fit.py` se resuelve el problema de clasificación.
+- En `visualization.py` se recogen todas las funciones de visualización de gráficas.
 
-La ejecución de los dos programas principales está preparada para que se muestren solo algunas gráficas además del procedimiento de ajuste del modelo (aquellas que consumen menos tiempo). Este comportamiento puede cambiarse mediante el parámetro `show` de la función principal en cada caso, eliminando todas las gráficas (valor $0$) o mostrándolas todas (valor $2$). Además, en las operaciones de cálculo intensivo que lo permitan se utiliza el parámetro `n_jobs = -1` para paralelizar el flujo de trabajo en tantas hebras como se pueda. Por pantalla se muestra información sobre el tiempo de ejecución de los ajustes de los modelos y del programa completo.
+La ejecución del programa principal está preparada para que se muestren solo algunas gráficas además del procedimiento de ajuste del modelo (aquellas que consumen menos tiempo). Este comportamiento puede cambiarse mediante el parámetro `SHOW`, eliminando todas las gráficas (valor `Show.NONE`) o mostrándolas todas (valor `Show.ALL`). Además, en las operaciones de cálculo intensivo que lo permitan se utiliza el parámetro `n_jobs = -1` para paralelizar el flujo de trabajo en tantas hebras como se pueda. Por pantalla se muestra información sobre el tiempo de ejecución de los ajustes de los modelos y del programa completo.
 
 Para que los experimentos sean reproducibles se fija una semilla aleatoria al incio del programa. Todos los resultados y gráficas que se muestran a continuación se han obtenido con el valor $2020$ para la semilla, y pueden reproducirse si se ejecuta el programa tal y como se proporciona.
 
 # Base de datos y descripción del problema
 
-Citar a [@fernandes2015] y poner [link](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity) a la BBDD. Mencionar un resumen muy general de los diferentes atributos que se recogen (tipo real, entero, etc). Mostrar tabla-resumen que viene en el artículo.
+Para este problema trabajaremos con la base de datos [*Online News Popularity*](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity). Se trata de una recopilación de diferentes estadísticas sobre artículos publicados en el sitio web [*mashable*](https://mashable.com/?europe=true) por un período de dos años. El objetivo es predecir la popularidad de los artículos, cuantificada como el número de veces que se comparte cada artículo. Aunque este valor es continuo, tomamos un umbral a partir del cual consideramos que un artículo es popular. Los autores del *dataset* recomiendan en [@fernandes2015] fijar este valor a $1400$, por lo que así lo hacemos nosotros.
 
-## Resumen estadístico de los datos (?)
+Disponemos de un total de 58 atributos predictivos, todos de tipo numérico (entero o real), que se utilizan para codificar un artículo; por ejemplo, se miden el número de enlaces que contiene, el día de la semana en que se publicó ó el ratio de palabras positivas y negativas, entre otros. Como los atributos no se encuentran normalizados y son de distinto tipo, consideramos como espacio muestral el producto de cada uno de los espacios muestrales individuales, que variará según el atributo concreto: $\mathcal X = \mathcal X_1 \times \dots \times \mathcal X_{58}$.En general, los espacios muestrales serán $[0, 1]$, $[-1, 0]$, $\mathbb R^+$, $\mathbb N$ ó $\{0, 1\}$. Como conjunto de etiquetas consideramos $\mathcal Y = \{1, -1\}$, que representará si un artículo es popular (se comparte más de 1400 veces) o no.
 
-Estudiar la distribución de clases si hacemos clasificación binaria (número exacto, porcentaje).
+Como tenemos información sobre los valores que queremos predecir en los 39644 ejemplos disponibles, nos encontramos ante un problema de aprenizaje supervisado; en concreto, un problema de clasificación binaria. Queremos aprender o estimar una función $f: \mathcal X \to \mathcal Y$ que asigne a cada artículo codificado como se ha explicado anteriormente una etiqueta que indique si será popular o no.
 
-# Selección de la clase de funciones
+## Análisis exploratorio de los datos
+
+Comenzamos analizando la distribución de clases en nuestros datos. Disponemos de un total de 39644 ejemplos, y si fijamos el umbral de popularidad en 1400, el reparto de clases queda configurado como se aprecia en la Tabla \ref{tab:clases}.
+
+ : Distribución de ejemplos por cada clase. \label{tab:clases}
+
+Rango de popularidad      |  Número de ejemplos   | Porcentaje
+------------------------- | --------------------- | -----------
+< 1400 (clase -1)         |  18490                | 46.6 %
+$\geq$ 1400  (clase 1)    |  21154                | 53.4 %
+
+Como vemos se trata de un reparto más o menos balanceado de las clases, de forma que podemos emplear las técnicas de ajuste usuales sin preocuparnos por problemas de desbalanceo.
+
+También podemos intentar visualizar el conjunto de datos en dos dimensiones, empleando para ello la técnica [TSNE](https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html) para visualizar datos de alta dimensión. Este algoritmo realiza una proyección en 2 dimensiones del conjunto de datos, minimizando una métrica estadística conocida como *divergencia de Kullback-Leibler*. En la Figura \ref{fig:tsne} se puede observar el resultado obtenido.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{img/tsne}
+\caption{Proyección en 2 dimensiones con TSNE.}
+\label{fig:tsne}
+\end{figure}
+
+Vemos que no obtenemos demasiada información positiva. No se aprecian *clústers* diferenciados, lo que nos lleva a pensar que no vamos a obtener unos resultados excesivamente buenos con los datos de los que disponemos; no tienen a priori suficiente poder de discriminación para separar completamente las clases.
+
+## Análisis de las variables
+
+Mostramos a continuación un breve análisis de los predictores disponibles en la base de datos, recogido en la Tabla \ref{tab:variables}, en el que mostramos para cada atributo su nombre, los valores mínimo y máximo, la media y la desviación típica. Una explicación del significado de cada atributo puede consultarse en el archivo `OnlineNewsPopularity.names` que se proporciona junto a los datos.
+
+Característica | Valor mínimo | Valor máximo | Media | STD
+-------------- | ------------ | ------------ | ----- | ------------------
+n_tokens_title  |   2.0000  |     23.0000  |     10.3987  |      2.1140
+n_tokens_content  |   0.0000  |   8474.0000  |    546.5147  |    471.1016
+n_unique_tokens  |   0.0000  |    701.0000  |      0.5482  |      3.5207
+n_non_stop_words  |   0.0000  |   1042.0000  |      0.9965  |      5.2312
+n_non_stop_unique_tokens  |   0.0000  |    650.0000  |      0.6892  |      3.2648
+num_hrefs  |   0.0000  |    304.0000  |     10.8837  |     11.3319
+num_self_hrefs  |   0.0000  |    116.0000  |      3.2936  |      3.8551
+num_imgs  |   0.0000  |    128.0000  |      4.5441  |      8.3093
+num_videos  |   0.0000  |     91.0000  |      1.2499  |      4.1078
+average_token_length  |   0.0000  |      8.0415  |      4.5482  |      0.8444
+num_keywords  |   1.0000  |     10.0000  |      7.2238  |      1.9091
+data_channel_is_lifestyle  |   0.0000  |      1.0000  |      0.0529  |      0.2239
+data_channel_is_entertainment  |   0.0000  |      1.0000  |      0.1780  |      0.3825
+data_channel_is_bus  |   0.0000  |      1.0000  |      0.1579  |      0.3646
+data_channel_is_socmed  |   0.0000  |      1.0000  |      0.0586  |      0.2349
+data_channel_is_tech  |   0.0000  |      1.0000  |      0.1853  |      0.3885
+data_channel_is_world  |   0.0000  |      1.0000  |      0.2126  |      0.4091
+kw_min_min  |  -1.0000  |    377.0000  |     26.1068  |     69.6323
+kw_max_min  |   0.0000  | 298400.0000  |   1153.9517  |   3857.9422
+kw_avg_min  |  -1.0000  |  42827.8571  |    312.3670  |    620.7761
+kw_min_max  |   0.0000  | 843300.0000  |  13612.3541  |  57985.2980
+kw_max_max  |   0.0000  | 843300.0000  | 752324.0667  | 214499.4242
+kw_avg_max  |   0.0000  | 843300.0000  | 259281.9381  | 135100.5433
+kw_min_avg  |  -1.0000  |   3613.0398  |   1117.1466  |   1137.4426
+kw_max_avg  |   0.0000  | 298400.0000  |   5657.2112  |   6098.7950
+kw_avg_avg  |   0.0000  |  43567.6599  |   3135.8586  |   1318.1338
+self_reference_min_shares  |   0.0000  | 843300.0000  |   3998.7554  |  19738.4216
+self_reference_max_shares  |   0.0000  | 843300.0000  |  10329.2127  |  41027.0592
+self_reference_avg_sharess  |   0.0000  | 843300.0000  |   6401.6976  |  24211.0269
+weekday_is_monday  |   0.0000  |      1.0000  |      0.1680  |      0.3739
+weekday_is_tuesday  |   0.0000  |      1.0000  |      0.1864  |      0.3894
+weekday_is_wednesday  |   0.0000  |      1.0000  |      0.1875  |      0.3903
+weekday_is_thursday  |   0.0000  |      1.0000  |      0.1833  |      0.3869
+weekday_is_friday  |   0.0000  |      1.0000  |      0.1438  |      0.3509
+weekday_is_saturday  |   0.0000  |      1.0000  |      0.0619  |      0.2409
+weekday_is_sunday  |   0.0000  |      1.0000  |      0.0690  |      0.2535
+is_weekend  |   0.0000  |      1.0000  |      0.1309  |      0.3373
+  LDA_00  |   0.0000  |      0.9270  |      0.1846  |      0.2630
+  LDA_01  |   0.0000  |      0.9259  |      0.1413  |      0.2197
+  LDA_02  |   0.0000  |      0.9200  |      0.2163  |      0.2821
+  LDA_03  |   0.0000  |      0.9265  |      0.2238  |      0.2952
+  LDA_04  |   0.0000  |      0.9272  |      0.2340  |      0.2892
+global_subjectivity  |   0.0000  |      1.0000  |      0.4434  |      0.1167
+global_sentiment_polarity  |  -0.3937  |      0.7278  |      0.1193  |      0.0969
+global_rate_positive_words  |   0.0000  |      0.1555  |      0.0396  |      0.0174
+global_rate_negative_words  |   0.0000  |      0.1849  |      0.0166  |      0.0108
+rate_positive_words  |   0.0000  |      1.0000  |      0.6822  |      0.1902
+rate_negative_words  |   0.0000  |      1.0000  |      0.2879  |      0.1562
+avg_positive_polarity  |   0.0000  |      1.0000  |      0.3538  |      0.1045
+min_positive_polarity  |   0.0000  |      1.0000  |      0.0954  |      0.0713
+max_positive_polarity  |   0.0000  |      1.0000  |      0.7567  |      0.2478
+avg_negative_polarity  |  -1.0000  |      0.0000  |     -0.2595  |      0.1277
+min_negative_polarity  |  -1.0000  |      0.0000  |     -0.5219  |      0.2903
+max_negative_polarity  |  -1.0000  |      0.0000  |     -0.1075  |      0.0954
+title_subjectivity  |   0.0000  |      1.0000  |      0.2824  |      0.3242
+title_sentiment_polarity  |  -1.0000  |      1.0000  |      0.0714  |      0.2654
+abs_title_subjectivity  |   0.0000  |      0.5000  |      0.3418  |      0.1888
+abs_title_sentiment_polarity  |   0.0000  |      1.0000  |      0.1561  |      0.2263
+
+ : Resumen estadístico de las características. \label{tab:variables}
+
+ Como ya comentábamos antes, cada variable tiene su propio rango de variación, por lo que será necesario posteriormente abordar este problema. En cuanto a la relevancia de las variables, hemos hecho un estudio basándonos en el criterio de importancia que otorga un modelo de Random Forest ajustado a los datos, obteniendo los resultados reflejados en la Figura \ref{fig:importancia}.
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=\textwidth]{img/importance}
+\caption{Importancia de características según criterio de Random Forest.}
+\label{fig:importancia}
+\end{figure}
+
+A la luz de este análisis nos inclinamos por pensar que todas las variables son relevantes para la predicción en mayor o menor medida, excepto quizás la tercera. Sin embargo, el hecho de que sospechamos que vamos a necesitar toda la información disponible para alcanzar un buen poder de predicción, unido a que los autores se basaron en una serie de métodos y análisis para escoger estas características concretas y no otras, nos motivan a concluir que no tenemos motivos para dudar de la idoneidad de ninguna variable para la predicción.
 
 # Conjuntos de entrenamiento, validación y *test*
 
-Debido a la gran cantidad de datos que tenemos, se ha hecho una partición (usando `train_test_split`) 20/50/30% para los conjuntos preanálisis, training y test, de manera que no hay conjunto de validación.
+Como disponemos de una cantidad considerable de datos, se ha hecho una partición (usando la función `train_test_split`) de 20/50/30% para los conjuntos validación, entrenamiento y *test*, respectivamente. Además, esta partición se realiza de forma estratificada para que se mantenga la distribución de clases, indicándolo con el parámetro `stratify`. Podemos observar en la Figura \ref{fig:clases} cómo queda esta distribución en los conjuntos unidos de validación y entrenamiento, y en el conjunto de *test*.
 
-El conjunto de preanálisis se utiliza para hacer una estimación del espacio de búsqueda óptimo de los hiperparámetros de cada modelo, permitiéndonos hacer una búsqueda más grande y rápida que usando todo el dataset completo. Después se entrena cada modelo por $K$*-fold cross validation* usando training y los entornos de las configuraciones óptimas del preanalisis, para obtener la mejor configuración de hiperparámetros por modelo (agrupando todos los modelos lineales, y boosting, respectivamente).
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\textwidth]{img/class_distr}
+\caption{Distribución de clases en entrenamiento y \textit{test}.}
+\label{fig:clases}
+\end{figure}
 
-Finalmente cada mejor configuración de cada modelo es evaluada en el conjunto test.
+El conjunto de *test* se utilizará para evaluar y comparar los mejores modelos de cada clase, y no habrá sido usado en ninguna otra fase del ajuste. El papel que desempeñarán los conjuntos de entrenamiento y validación se describe con detalle en la sección [Técnicas de selección de modelos].
 
-# Preprocesado de datos
+# Lectura y preprocesado de datos
 
-El procesado general que suele ser el más esencial es el de normalizar/estandarizar los datos, de manera que todas las variables estén en el mismo rango (importante para clasificadores que usan distancias); si bien hay que tener en cuenta que esta transformación (y cualquier otra) debe hacerse primero únicamente en el conjunto donde se esté entrenando en el clasificador, y a la hora de evaluar hacer la misma transformación (mismos parámetros) en el conjunto donde se valide.
+Para cargar los datos nos ayudamos de la librería `pandas` y su función `read_csv`, en la que podemos especificar las columnas concretas que queremos leer, si queremos incluir la cabecera o no, y algunos otros detalles como el separador usado. De esta forma no es necesario modificar el archivo original `OnlineNewsPopularity.csv`.
 
-Por tanto para la fase de preprocesado usaremos los *pipelines* de `sklearn`{\href{https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html}{Documentación sobre \texttt{Pipeline} en \texttt{sklearn}.}}, que nos permiten aplicar las mismas transformaciones en varias fases de forma cómoda. En ambos casos, consideramos cinco pasos en el preprocesado: tratamiento de valores perdidos, selección de variables, transformaciones polinómicas, umbral de varianza y estandarización.
+```python
+df = read_csv(
+    filename, sep = ', ',
+    engine = 'python', header = 0,
+    usecols = [i for i in range(2, 62)],
+    index_col = False,
+    dtype = np.float64)
+```
 
-## Valores perdidos
+Aprovechamos también para transformar la columna a predecir (la última) en una variable discreta que tome únicamente los valores 1 y -1:
 
-No tenemos valores pérdidos ni valores que parezcan inconsistentes por lo que saltamos este paso.
+```python
+df.iloc[:, -1] = df.iloc[:, -1].apply(
+    lambda x: -1.0 if x < CLASS_THRESHOLD else 1.0)
+```
 
-## Selección de características
+En el archivo de información del *dataset* nos dicen que no hay valores perdidos (también podemos comprobarlo con una llamada a `isnull().values.any()`), por lo que no es necesario realizar tratamiento alguno en este sentido. Tampoco es necesario codificar los datos de entrada para hacerlos útiles a los algoritmos, pues ya vienen expresados en valores numéricos.
 
-## Transformaciones polinómicas
+Más atención merece el hecho de que los datos no se encuentran en la misma escala, lo que puede provocar problemas con algunos algoritmos (por ejemplo aquellos basados en distancias), y en general es beneficioso siempre normalizar los datos. Esto lo realizamos con la transformación `StandardScaler`, que modifica cada columna restándole su media y dividiendo por la desviación típica, de forma que los datos quedan con media 0 y desviación típica 1.
 
-## Estandarización y umbral de varianza
+Además, añadimos previamente una transformación `VarianceThreshold` para eliminar variables con varianza 0 (que son constantes y no nos aportan información relevante para predecir). Aunque en nuestro conjunto inicial no hay variables constantes, la división en varios subconjuntos podría provocar que aparecieran, por lo que lo tenemos en cuenta.
 
-## Orden de las transformaciones
+Hay que tener presente que estas transformaciones (y cualquier otra) deben hacerse primero únicamente en el conjunto de entrenamiento, y a la hora de evaluar se tienen que hacer exactamente las mismas transformaciones (con mismos parámetros) en el conjunto donde se valide, para evitar caer en el fenómeno de *data snooping*. Es por esto que haremos uso de los [*pipelines*](https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html) de `sklearn`, que nos permiten aplicar las mismas transformaciones en varias fases de forma cómoda, además de encadenar varias. En concreto, el *pipeline* de preprocesado general quedaría como
+
+```python
+preproc = Pipeline([
+    ("var", VarianceThreshold()),
+    ("standardize", StandardScaler())])
+```
 
 # Métricas de error
 
-Ya que las clases están casi balanceadas, la métrica que usaremos será el *error de clasificación*, una medida simple pero efectiva del error cometido. Si denotamos los ejemplos de entrada a un clasificador $h$ por $(x_n, y_n)$, podemos expresar el error como la fracción total de elementos mal clasificados: $$ E_{class}(h) = \frac{1}{N}\sum_{i=1}^N \llbracket h(x_n) \neq y_n \rrbracket. $$
+Ya que las clases están prácticamentes balanceadas, la métrica que usaremos será el *error de clasificación*, una medida simple pero efectiva del error cometido. Si denotamos los ejemplos de entrada a un clasificador $h$ por $(x_n, y_n)$, podemos expresar el error como la fracción total de elementos mal clasificados: $$ E_{class}(h) = \frac{1}{N}\sum_{i=1}^N \llbracket h(x_n) \neq y_n \rrbracket. $$
 
-Sabemos que esta medida de error se encuentra en el intervalo $[0,1]$, siendo $0$ lo mejor posible y $1$ lo peor. Se trata de una medida de fácil interpretación; podemos expresarla en porcentaje o invertirla, de forma que $1 - E_{in}$ es lo que se conoce como el *accuracy* del modelo. Presentaremos los resultados utilizando esta última descripción ya que parece más ilustrativa.
+Sabemos que esta medida de error se encuentra en el intervalo $[0,1]$, siendo $0$ lo mejor posible y $1$ lo peor. Se trata de una medida de fácil interpretación; podemos expresarla en porcentaje o invertirla, de forma que $1 - E_{class}$ es lo que se conoce como el *accuracy* del modelo. Presentaremos los resultados utilizando esta última descripción ya que parece más ilustrativa.
 
-También consideraremos el área bajo la curva ROC, que nos permite comparar lo bien que lo hace el clasificador frente a un clasificador aleatorio.
+También consideraremos una métrica segundaria de error: el área bajo la curva ROC (AUC). Esta métrica que nos permite comparar el desempeño de los clasificadores en tanto que varía el umbral de clasificación (aquel valor a partir del cual se considera que un ejemplo pertenece a la clase positiva), proporcionando una medida del poder de discriminación que tiene el clasificador. Para computar esta métrica, se obtiene primero la curva ROC representando el ratio de verdaderos positivos frente al ratio de falsos positivos, para todos los posibles umbrales de clasificación, y finalmente se toma el área bajo esta curva. Esta métrica está también en $[0, 1]$, y será mejor cuanto más alta sea.
 
-TODO: expandir esto?
+Todos los clasificadores empleados tienen internamente una función que asigna un valor numérico a cada punto para cada clase, ya sean probabilidades (`predict_proba`) u otros valores propios de cada clasificador (`decision_function`). Son estas funciones las que se emplean en el cálculo de la métrica AUC, materializado mediante una llamada a la función `roc_auc_score`.
 
-# Regularización
+Disponemos de una función `print_evaluation_metrics` que imprime el valor de estas dos métricas para un clasificador y unos conjuntos de datos datos.
 
-El uso de la regularización es esencial para limitar la complejidad del modelo y el *overfitting*, cosa que nos permitirá obtener una mejor capacidad de generalización. Consideramos las siguientes regularizaciones:
+# Técnicas de regularización
+
+El uso de la regularización es esencial para limitar la complejidad de los modelos y evitar el *overfitting*, cosa que nos permitirá obtener una mejor capacidad de generalización. Consideramos las siguientes regularizaciones, que aplicaremos según el modelo que estemos ajustando:
 
 - **Regularización L2 (Ridge)**: se añade una penalización a la función de pérdida que es cuadrática en los pesos,
 $$
 L_{reg}(w) = L(w) + \lambda||w||_2^2.
 $$
 
-- **Profundidad máxima**: se restringe la profundidad máxima de cada árbol de decisión.
+- **Profundidad máxima**: se restringe la profundidad máxima de cada árbol de decisión a un valor $\lambda$.
 
-- **Poda mínima del coste computacional**: se hace poda en las ramas de cada árbol de decisión según la función de coste computacional, $$ R_\lambda(T) = R(T) + \lambda|T| $$ siendo $R(T)$ el ratio mal clasificado de las hojas y $|T|$ el número de nodos hojas.
+- **Poda de coste-complejidad minimal**: se hace poda en las ramas de cada árbol de decisión de forma que se minimice la función de coste $$ R_\lambda(T) = R(T) + \lambda|T|,$$ siendo $R(T)$ el ratio mal clasificado en las hojas y $|T|$ el número de nodos hoja.
 
-El valor de $\lambda > 0$ es un hiperparámetro del modelo, que controla la intensidad de la regularización (a mayor valor, más pequeños serán los pesos). Encontrar un valor adecuado es una tarea complicada, pues si es demasiado pequeño seguiremos teniendo sobreajuste, pero si es demasiado grande podríamos caer en el fenómeno opuesto: tener *underfitting* porque el modelo sea poco flexible y no consiga ajustar bien los datos de entrenamiento.
+El valor de $\lambda > 0$ es un hiperparámetro del modelo, que controla la intensidad de la regularización. Encontrar un valor adecuado es una tarea complicada, pues según varíe podríamos tener sobreajuste o caer en el fenómeno opuesto: tener *underfitting* porque el modelo sea poco flexible y no consiga ajustar bien los datos de entrenamiento.
 
-Hemos considerado L2 para los modelos lineales ya que queremos generalizarlos para bajar la varianza en pos de extraer un mayor valor de la métrica, a costa de no rebajar el tiempo de computación (reduciendo variables con L1), pero no nos importa puesto que el tiempo de entrenamiento es razonable y preferimos aumentar el acierto.
+En la sección [Ajuste de modelos] comentaremos para cada modelo concreto la regularización utilizada junto con los argumentos que justifican la decisión.
 
-En el caso de los árboles de decisión (Random Forest) queríamos bajar la alta varianza que tienen los árboles, consiguiendo también una mejoría del tiempo de entrenamiento.
+# Técnicas de selección de modelos
 
-# Técnicas y selección de modelos
+Para elegir el mejor modelo dentro de una clase concreta hemos considerado usar la técnica de $K$*-fold cross validation*. Esta técnica se basa en dividir el conjunto de entrenamiento en $K$ conjuntos de igual tamaño, y va iterando sobre ellos de forma que en cada paso entrena los modelos en los datos pertenecientes a $K-1$ de los conjuntos, y los evalúa en el conjunto restante. Finalmente se realiza la media del error a lo largo de todos los mini-conjuntos de validación y se escoge el modelo con menor error. Este error se conoce como *error de cross-validation*, denotado $E_{cv}$, y sabemos que es un buen estimador del error fuera de la muestra, por lo que tiene sentido utilizarlo para estimar la calidad del ajuste y decidir entre varias configuraciones distintas. Hemos optado por esta técnica frente a otras, además de por su probada eficacia e idoneidad para problemas como el nuestro, porque de esta manera no tenemos que reservar un nuevo conjunto para ir validando cada configuración de hiperparámetros, aprovechando mejor los datos de los que disponemos.
 
-Pasamos a realizar la selección de hiperparámetros para cada modelo. Hemos considerado usar la técnica de $K$*-fold cross validation* para escoger la mejor configuración de hiperparámetros de cada modelo. Esta técnica se basa en dividir el conjunto de entrenamiento en $K$ conjuntos de igual tamaño, y va iterando sobre ellos de forma que en cada paso entrena los modelos en los datos pertenecientes a $K-1$ de los conjuntos, y los evalúa en el conjunto restante. Finalmente se realiza la media del error a lo largo de todos los mini-conjuntos de validación y se escoge el modelo con menor error. Este error se conoce como *error de cross-validation*, denotado $E_{cv}$, y sabemos que es un buen estimador del error fuera de la muestra.
+En cada clase de modelos consideraremos uno o varios tipos de clasificadores (por ejemplo, en los clasificadores *boosting* podemos considerar `AdaBoost` y `GradientBoosting`), y para todos realizaremos una búsqueda en el espacio de hiperparámetros para encontrar los que mejor se ajustan a nuestro problema. Es aquí donde entra en juego el conjunto de validación que separamos, pues dividimos este proceso en dos partes:
 
-Para esto utilizamos la función `GridSearchCV`, la cual puede recibir un *pipeline* como estimador y una lista de diccionarios que represente el espacio de hiperparámetros. Para evitar el fenómeno de *data snooping* que podría contaminar los conjuntos de validación, todo el cauce de preprocesado y selección de modelos se realiza de principio a fin: fijamos al principio las divisiones en $K$ folds y las utilizamos en todo el proceso. Para el caso de clasificación, estas divisiones serán en particular instancias de `StratifiedKFold`, que respeta la distribución de clases en las divisiones.
+1. En primer lugar se realiza un preanálisis en el conjunto de validación para hacer una estimación del espacio de búsqueda óptimo de los hiperparámetros de cada modelo, permitiéndonos hacer una búsqueda más grande y rápida que usando todo el *dataset* completo. En general restringimos este análisis a uno o dos parámetros en cada modelo, los que se consideran que tienen más relevancia y/o un espacio de búsqueda que en principio no podemos restringir demasiado.
 
-Para todos los modelos, hacemos un preanálisis para estimar un buen espacio de búsqueda de los hiperparámetros numéricos, de manera que no es completamente arbitrario, si no que intentamos restringir a un entorno (holgado, puesto que usaremos menos datos) de la configuración óptima de hiperparámetros que hemos encontrado en este preanálisis. Además, al usar un conjunto menor nos permite explorar un espacio mucho más grande que usando el dataset de entrenamiento entero.
+2. Basándonos en los resultados obtenidos en el paso anterior, configuramos el espacio de búsqueda para los modelos en un entorno reducido de los que se consideran óptimos (no los fijamos porque al entrenar con más datos puede haber fluctuaciones que hagan que otros sean mejores). Aplicamos de nuevo la técnica de *grid search*, esta vez en el conjunto de entrenamiento, y fijamos el modelo que menor error de *cross-validation* tenga como el mejor de su clase.
 
-Una vez hemos encontrado la mejor configuración para cada modelo (agrupando todos los modelos lineales, y boosting, respectivamente), se vuelve a entrenar sobre todo el conjunto de entrenamiento, para obtener un mejor rendimiento. Este es el comportamiento por defecto de la función `GridSearchCV`.
+Una vez obtenido el mejor modelo, **lo reentrenamos con todos los datos de entrenamiento y validación**, para aprovechar todos los datos de los que disponemos e intentar mejorar la calidad del ajuste. Es importante notar que siguiendo este procedimiento estamos obteniendo a la vez el mejor modelo con los mejores parámetros.
 
-Comentamos ahora los modelos que pre-seleccionamos en el problema de clasificación. La métrica usada para decidir el mejor modelo será, de forma natural, el accuracy medio en los conjuntos de validación. Fijamos el número máximo de iteraciones en 1000 para todos los modelos que usen iteraciones.
+Para todo este proceso es clave la función `GridSearchCV`, la cual puede recibir un *pipeline* como estimador y una lista de diccionarios que represente el espacio de hiperparámetros. Para evitar el fenómeno de *data snooping* que podría contaminar los conjuntos de validación, todo el cauce de preprocesado y selección de modelos se realiza de principio a fin: fijamos al principio las divisiones en $K$ folds y las utilizamos en todo el proceso. Estas divisiones serán en particular instancias de `StratifiedKFold`, que respeta la distribución de clases en las divisiones. También consideramos la función `RandomizedSearchCV`, que funciona de forma similar pero permite que le pasemos los parámetros como distribuciones de las que va extrayendo muestras. De esta forma podemos considerar un espacio continuo de parámetros y especificar el número de muestras a extraer, eliminando la necesidad de discretizar manualmente el espacio si no tenemos información sobre cómo hacerlo.
+
+En la sección [Ajuste de modelos] veremos cómo se especifica en el código el espacio de parámetros y el procedimiento de ajuste.
+
+
+# Ajuste de modelos
+
+Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentro de cada una el procedimiento de ajuste y la justificación de los pasos seguidos. La métrica usada para decidir el mejor modelo será, de forma natural, el *accuracy* medio en los conjuntos de validación. Fijamos el valor de $K$ en 5 para la etapa de *cross-validation*, pues se trata de un valor no demasiado elevado que no dispara el tiempo de entrenamiento, pero lo suficiente como para conseguir unos resultados confiables.
 
 ## Modelos lineales
 
-### Regresión Logística
+Hemos considerado L2 para los modelos lineales ya que queremos generalizarlos para bajar la varianza en pos de extraer un mayor valor de la métrica, a costa de no rebajar el tiempo de computación (reduciendo variables con L1), pero no nos importa puesto que el tiempo de entrenamiento es razonable y preferimos aumentar el acierto.
+
+TODO poner matriz de correlación. hablar de pca + poly.
+TODO nº iteraciones
+
+### Regresión Logística {.unlisted .unnumbered}
 
 En primer lugar consideramos un modelo de regresión logística, implementado en el objeto `LogisticRegression`, usando regularización L2. El parámetro de regularización, cuyo inverso es lo que en el código se alude como C, viene dado por el preanálisis, considerando 40 puntos en el espacio logarítmico $[-5, 1]$ para el preanálisis.
 
@@ -125,7 +261,7 @@ El resultado del preanálisis de \ref{fig:pre_lr} nos indica que desde el orden 
  "clf__C": np.logspace(-4, 0, 9)}
 ```
 
-### Regresión lineal
+### Regresión lineal {.unlisted .unnumbered}
 
 Consideramos también un modelo de regresión lineal. Utilizamos un objeto `RidgeClassifier`, que fija implícitamente la regularización L2. En este caso, la constante de regularización se llama alpha, considerando el espacio de búsqueda como 40 puntos en el espacio logarítmico $[-5, 5]$.
 
@@ -152,7 +288,7 @@ El resultado del preanálisis de \ref{fig:pre_rc} nos arroja un máximo cerca de
  "clf__alpha": np.logspace(0, 5, 9)}
 ```
 
-### SVM Lineal
+### SVM Lineal {.unlisted .unnumbered}
 
 Finalmente en modelos lineales, consideramos las máquinas de soporte vectorial (SVM) lineales (sin usar kernel) utilizando el objeto `SGDClassifier` con regularización L2, y tomando alpha con 40 puntos en el espacio logarítmico $[-6, 2]$.
 
@@ -185,9 +321,9 @@ Los resultados del preanálisis en \ref{fig:pre_svm} nos indican un máximo cerc
 
 También hemos considerado como hiperparámetro adicional el tipo de tasa de aprendizaje, fijando la inicial (`eta0`) como 0.1: `optimal` (tasa escogida por heurística), `adaptive` (inicial, y decrementa cuando el error no decrementa) y `invscaling` (inicial, y decrementa dividiendo por la raiz del nº de iteraciones).
 
-## Modelos no lineales
+## Random Forest (RF)
 
-### Random Forest (RF)
+En el caso de los árboles de decisión (Random Forest) queríamos bajar la alta varianza que tienen los árboles, consiguiendo también una mejoría del tiempo de entrenamiento.
 
 Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol. Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth`, inicialmente tenemos el siguiente espacio:
 
@@ -228,15 +364,15 @@ Finalmente la configuración de hiperparámetros quedaría:
 
 Hemos añadido el hiperparámetro `cc_alpha` que se usa para la poda de mínimo coste computacional, para experimentar con más regularización.
 
-### Boosting
+## Boosting
 
-#### AdaBoost
+### AdaBoost {.unlisted .unnumbered}
 
-#### GradientBoosting
+### Gradient Boosting {.unlisted .unnumbered}
 
-### Multilayer Perceptron (MLP)
+## Perceptrón multicapa (MLP)
 
-### K-Nearest Neighbors (KNN)
+## K-Nearest Neighbors (KNN)
 
 Algoritmo de los k vecinos más cercanos mediante el objeto `KNeighborsClassifier`, usando la métrica euclidea, y el espacio de búsqueda para el hiperparámetro `k`, considerando la regla a ojo que recomienda usar $k = \sqrt{N}$, vamos desde 1 hasta 200 pasando por $k \approx 90$ (tamaño dataset preanálisis):
 
@@ -264,7 +400,7 @@ Los resultados preanálisis \ref{fig:pre_knn} nos confirman la regla experimenta
 
 Además añadimos el hiperparámetro `weights` que permite cambiar el peso de los vecinos: `uniform` todos importan igual, `distance` los vecinos importan en función de la distancia.
 
-### Funciones de Base Radial (RBF)
+## Redes de funciones de Base Radial (RBF)
 
 El clasificador está implementado siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO por nostros en la clase `RBFNetworkClassifier`.
 
@@ -295,8 +431,7 @@ TODO: cambiar espacio de búsqueda?
 
 Los resultados del preanálisis \ref{fig:pre_rbf}
 
-
-# Análisis de resultados y estimación del error
+# Análisis de resultados
 
 Resultados de la mejor configuración de cada modelo en training/test en \ref{table:res_modelos}.
 
@@ -320,7 +455,9 @@ Resultados de la mejor configuración de cada modelo en training/test en \ref{ta
  \label{table:res_modelos}
 \end{table}
 
-# Conclusiones y justificación
+# Conclusiones y estimación del error
+
+[@fernandes2015]
 
 # Anexo: Funcionamiento del código {.unnumbered}
 
