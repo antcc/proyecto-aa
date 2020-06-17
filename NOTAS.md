@@ -15,7 +15,6 @@
 - Ventajas e inconvenientes de cada modelo. Pérdida de interpretabilidad, tiempo, etc. Argumentos a favor de los modelos. (variables nuimércias, balñanceo...)
 - Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
 - Elegir el modelo en cada caso: si hay variables numéricas, elijo tal, si no, cual..
-- Comparar tabla de resultados con resuklts.md
 # Formato de la documentación
 
 - Rellenar el `README.md`

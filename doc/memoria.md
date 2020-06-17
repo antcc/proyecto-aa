@@ -234,7 +234,7 @@ TODO nº iteraciones
 
 ### Regresión Logística {.unlisted .unnumbered}
 
-En primer lugar consideramos un modelo de regresión logística, implementado en el objeto `LogisticRegression`, usando regularización L2. El parámetro de regularización, cuyo inverso es lo que en el código se alude como C, viene dado por el preanálisis, considerando 40 puntos en el espacio logarítmico $[-5, 1]$ para el preanálisis.
+En primer lugar consideramos un modelo de regresión logística, implementado en el objeto `LogisticRegression`, usando regularización L2. El parámetro de regularización, cuyo inverso es lo que en el código se alude como `C`, viene dado por el preanálisis, considerando 40 puntos en el espacio logarítmico $[-5, 1]$ para el preanálisis.
 
 ```python
 {"clf": [LogisticRegression(penalty = 'l2',
@@ -252,7 +252,7 @@ En este caso, la técnica de optimización es la que viene por defecto, que se c
   \label{fig:pre_lr}
 \end{figure}
 
-El resultado del preanálisis de \ref{fig:pre_lr} nos indica que desde el orden de $10^{-4}$ en adelante, los resultados son igual de buenos, alcanzando un máximo entre $10^{-4}$ y $10^{-3}$. Por tanto restringimos C al espacio logarítmico $[-4, 0]$, quedando:
+El resultado del preanálisis de \ref{fig:pre_lr} nos indica que desde el orden de $10^{-4}$ en adelante, los resultados son igual de buenos, alcanzando un máximo entre $10^{-4}$ y $10^{-3}$. Por tanto restringimos `C` al espacio logarítmico $[-4, 0]$, quedando:
 
 ```python
 {"clf": [LogisticRegression(penalty = 'l2',
@@ -263,7 +263,7 @@ El resultado del preanálisis de \ref{fig:pre_lr} nos indica que desde el orden 
 
 ### Regresión lineal {.unlisted .unnumbered}
 
-Consideramos también un modelo de regresión lineal. Utilizamos un objeto `RidgeClassifier`, que fija implícitamente la regularización L2. En este caso, la constante de regularización se llama alpha, considerando el espacio de búsqueda como 40 puntos en el espacio logarítmico $[-5, 5]$.
+Consideramos también un modelo de regresión lineal. Utilizamos un objeto `RidgeClassifier`, que fija implícitamente la regularización L2. En este caso, la constante de regularización se llama `alpha`, considerando el espacio de búsqueda como 40 puntos en el espacio logarítmico $[-5, 5]$.
 
 ```python
 {"clf": [RidgeClassifier(random_state = SEED,
@@ -290,7 +290,7 @@ El resultado del preanálisis de \ref{fig:pre_rc} nos arroja un máximo cerca de
 
 ### SVM Lineal {.unlisted .unnumbered}
 
-Finalmente en modelos lineales, consideramos las máquinas de soporte vectorial (SVM) lineales (sin usar kernel) utilizando el objeto `SGDClassifier` con regularización L2, y tomando alpha con 40 puntos en el espacio logarítmico $[-6, 2]$.
+Finalmente en modelos lineales, consideramos las máquinas de soporte vectorial (SVM) lineales (sin usar kernel) utilizando el objeto `SGDClassifier` con regularización L2, y tomando `alpha` con 40 puntos en el espacio logarítmico $[-6, 2]$.
 
 ```python
 {"clf": [SGDClassifier(random_state = SEED,
@@ -325,7 +325,9 @@ También hemos considerado como hiperparámetro adicional el tipo de tasa de apr
 
 En el caso de los árboles de decisión (Random Forest) queríamos bajar la alta varianza que tienen los árboles, consiguiendo también una mejoría del tiempo de entrenamiento.
 
-Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol. Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth`, inicialmente tenemos el siguiente espacio:
+Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol.
+
+Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth` (regulariación) e inicialmente tenemos el siguiente espacio:
 
 ```python
 {"clf": [RandomForestClassifier(random_state = SEED)],
@@ -333,19 +335,17 @@ Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el
  "clf__n_estimators": [100, 200, 300, 400, 500, 600]}
 ```
 
-La clase de funciones que buscamos para ajustar son la agrupación (ensemble) de funciones definidas por los hiperplanos paralelos a los ejes que particionan el espacio, donde se entrenan usando el algoritmo CART.
-
 \begin{figure}[h!]
   \centering
   \includegraphics[width=1.\textwidth]{img/RandomForest_acc_time.png}
-  \caption{acc-cv/tiempo según hiperparámetros en RandomForest.}
+  \caption{acc-cv/tiempo según n\_estimators y max\_depth en RandomForest.}
   \label{fig:pre_rf1}
 \end{figure}
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=.8\textwidth]{img/RandomForest_heatmap.png}
-  \caption{Mapa de calor según hiperparámetros en RandomForest.}
+  \includegraphics[width=.7\textwidth]{img/RandomForest_heatmap.png}
+  \caption{Mapa de calor según n\_estimators y max\_depth en RandomForest.}
   \label{fig:pre_rf2}
 \end{figure}
 
@@ -368,9 +368,120 @@ Hemos añadido el hiperparámetro `cc_alpha` que se usa para la poda de mínimo 
 
 ### AdaBoost {.unlisted .unnumbered}
 
+Hiperparámetros AdaBoost:
+
+```python
+{"clf": [AdaBoostClassifier(random_state = SEED,
+                            base_estimator = DecisionTreeClassifier())],
+ "clf__base_estimator__max_depth": [1, 2, 3, 4, 5],
+ "clf__n_estimators": [100, 200, 300, 400, 500]}
+```
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=1.\textwidth]{img/AdaBoostClassifier_acc_time.png}
+  \caption{acc-cv/tiempo según n\_estimators y max\_depth en AdaBoost.}
+  \label{fig:pre_adaboost1}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/AdaBoostClassifier_heatmap.png}
+  \caption{Mapa de calor según n\_estimators y max\_depth en AdaBoost.}
+  \label{fig:pre_adaboost2}
+\end{figure}
+
+
+Resultados preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2}
+
+Espacio final:
+
+```python
+{"clf": [AdaBoostClassifier(random_state = SEED)],
+ "clf__n_estimators": [175, 200, 225],
+ "clf__learning_rate": [0.5, 1.0]}
+```
+
 ### Gradient Boosting {.unlisted .unnumbered}
 
+Hiperparámetros Gradient Boosting:
+
+```python
+{"clf": [GradientBoostingClassifier(random_state = SEED)],
+ "clf__max_depth": [1, 2, 3, 4, 5],
+ "clf__n_estimators": [100, 200, 300, 400, 500]}
+```
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=1.\textwidth]{img/GradientBoostingClassifier_acc_time.png}
+  \caption{acc-cv/tiempo según n\_estimators y max\_depth en GradientBoosting.}
+  \label{fig:pre_gradboosting1}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/GradientBoostingClassifier_heatmap.png}
+  \caption{Mapa de calor según n\_estimators y max\_depth en GradientBoosting.}
+  \label{fig:pre_gradboosting2}
+\end{figure}
+
+Resultados preanálisis \ref{fig:pre_gradboosting1} y \ref{fig:pre_gradboosting2}
+
+Configuración final:
+
+```python
+{"clf": [GradientBoostingClassifier(random_state = SEED,
+                                    n_estimators = 100)],
+ "clf__learning_rate": [0.05, 0.1, 1.0],
+ "clf__subsample": [1.0, 0.75],
+ "clf__max_depth": [4, 5]},
+{"clf": [GradientBoostingClassifier(random_state = SEED,
+                                    n_estimators = 300)],
+ "clf__learning_rate": [0.05, 0.1, 1.0],
+ "clf__subsample": [1.0, 0.75],
+ "clf__max_depth": [1, 2]}
+```
+
 ## Perceptrón multicapa (MLP)
+
+Perceptrón multicapa con 3 capas (2 ocultas y la de salida) con el objeto `MLPClassifier` con los siguientes parámetros fijados: `learning_rate_init = 0.01` (tasa de aprendizaje inicial), `solver = sgd` (ajuste con SGD), `max_iter = 300` (nº máximo de iteraciones), `learning_rate = 'adaptive'` (decrementa la tasa de aprendizaje cuando no baja el error), `activation = relu` (función de activación ReLU) y `tol = 1e-3` (tolerancia para la convergencia).
+
+Dejamos como hiperparámetro el nº de neuronas en las capas ocultas `hidden_layer_sizes`, tomando el mismo tamaño para ambas capas y haciendo una búsqueda aleatoria en el rango $[50, 101]$:
+
+```python
+{"clf": [MLPClassifier(random_state = SEED,
+                       learning_rate_init = 0.01,
+                       solver = 'sgd',
+                       max_iter = 300,
+                       learning_rate = 'adaptive',
+                       activation = 'relu',
+                       tol = 1e-3)],
+ "clf__hidden_layer_sizes": multi_randint(50, 101, 2)}
+```
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=1.\textwidth]{img/MLP_acc_time.png}
+  \caption{acc-cv/tiempo según hidden\_layer\_sizes en MLP.}
+  \label{fig:pre_mlp}
+\end{figure}
+
+El resultado de \ref{fig:pre_mlp} nos deja dos tamaños con los mejores resultados en sus entornos, en 57 y 88, por tanto probamos con estas configuraciones:
+
+```python
+{"clf": [MLPClassifier(random_state = SEED,
+                       learning_rate_init = 0.1,
+                       solver = 'sgd',
+                       max_iter = 300,
+                       learning_rate = 'adaptive',
+                       activation = 'relu',
+                       tol = 1e-3)],
+ "clf__hidden_layer_sizes": [(57, 57), (88, 88)],
+ "clf__alpha": loguniform(1e-2, 1e2)}
+```
+
+Además añadimos el hiperparámetro `alpha` relativo a la regularización L2 para que el modelo generalice mejor.
 
 ## K-Nearest Neighbors (KNN)
 
@@ -380,8 +491,6 @@ Algoritmo de los k vecinos más cercanos mediante el objeto `KNeighborsClassifie
 {"clf": [KNeighborsClassifier()],
  "clf__n_neighbors": [1, 3, 5, 10, 20, 25, 30, 40, 50, 100, 200]}
 ```
-
-TODO: Añadir clase de funciones
 
 \begin{figure}[h!]
   \centering
@@ -398,13 +507,11 @@ Los resultados preanálisis \ref{fig:pre_knn} nos confirman la regla experimenta
  "clf__weights": ['uniform', 'distance']}
 ```
 
-Además añadimos el hiperparámetro `weights` que permite cambiar el peso de los vecinos: `uniform` todos importan igual, `distance` los vecinos importan en función de la distancia.
+Además añadimos para dar más variabilidad en la búsqueda, el hiperparámetro `weights` que permite cambiar el peso de los vecinos: `uniform` todos importan igual, `distance` los vecinos importan en función de la distancia.
 
 ## Redes de funciones de Base Radial (RBF)
 
-El clasificador está implementado siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO por nostros en la clase `RBFNetworkClassifier`.
-
-TODO: cambiar espacio de búsqueda?
+El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO. Hemos considerado el algoritmo K-medias (`KMeans`) para encontrar los $k$ centroides, la sugerencia de fijar $r = \dfrac{R}{k^{1/d}}$ y finalmente el algoritmo lineal considerado con el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`) ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal.
 
 \begin{algorithm}[H]
 \SetAlgoLined
@@ -417,21 +524,38 @@ TODO: cambiar espacio de búsqueda?
 \label{alg:rbf}
 \end{algorithm}
 
+Los hiperparámetros a considerar son tanto el nº de centroides `k` como el parámetro de regularización en el modelo lineal `alpha`, cuya configuración de búsqueda inicial es:
+
 ```python
 {"clf": [RBFNetworkClassifier(random_state = SEED)],
-       "clf__k": [10, 25, 50, 100, 150, 200, 250, 300]}
+ "clf__k": [5, 10, 25, 50, 100, 200, 300, 400],
+ "clf__alpha": [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]}
 ```
 
 \begin{figure}[h!]
   \centering
   \includegraphics[width=1.\textwidth]{img/RBF_acc_time.png}
-  \caption{acc-cv/tiempo según k en RBF.}
-  \label{fig:pre_rbf}
+  \caption{acc-cv/tiempo según `k` y `alpha` en RBF.}
+  \label{fig:pre_rbf1}
 \end{figure}
 
-Los resultados del preanálisis \ref{fig:pre_rbf}
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/RBF_heatmap.png}
+  \caption{Mapa de calor según `k` y `alpha` en RBF.}
+  \label{fig:pre_rbf2}
+\end{figure}
+
+Los resultados del preanálisis \ref{fig:pre_rbf1} y \ref{fig:pre_rbf2} nos indican como los mejores resultados se encuentran con `k` $\geq 50$ y `alpha` $\leq 10^{-5}$, donde además vemos que los resultados buenos tienden a estabilizarse. Por tanto el espacio de búsqueda final queda así:
+
+```python
+{"clf": [RBFNetworkClassifier(random_state = SEED)],
+ "clf__k": [50, 100, 200, 300, 400],
+ "clf__alpha": [0.0, 1e-10, 1e-5]}
+```
 
 # Análisis de resultados
+
 
 Resultados de la mejor configuración de cada modelo en training/test en \ref{table:res_modelos}.
 
@@ -442,12 +566,12 @@ Resultados de la mejor configuración de cada modelo en training/test en \ref{ta
  Modelo & $acc_{in}$ & $acc_{test}$ & $AUC_{in}$ & $AUC_{test}$ \\ [0.5ex]
  \hline\hline
 
- Modelo Lineal & 67.74 & 65.66 & 74.32 & 70.92 \\
+ Modelo Lineal & 67.74 & 65.55 & 74.32 & 70.92 \\
  RandomForest & \textbf{99.80} & \textbf{66.71} & \textbf{99.99} & 72.60 \\
  Boosting & 71.21 & 66.44 & 78.61 & \textbf{72.84} \\
  MLP & 66.04 & 64.83 & 71.77 & 70.25 \\
  KNN & --- & 63.95 & --- & 68.80 \\
- RBF-Network & 65.93 & 64.83 & 71.4 & 70.14 \\
+ RBF-Network & 65.93 & 64.83 & 71.40 & 70.14 \\
  Aleatorio & 50.43 & 50.58 & 50.08 & 49.78 \\ [1ex]
  \hline
  \end{tabular}
