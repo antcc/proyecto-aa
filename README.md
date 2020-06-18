@@ -19,3 +19,12 @@ Realizado junto a [@MiguelLentisco](https://github.com/MiguelLentisco). Curso 20
 - Filtros de Pandoc: [pandoc-citeproc](https://github.com/jgm/pandoc-citeproc)
 
 ## Resultados
+
+ Modelo             | Accuracy en *test* (%)  | AUC en *test*
+:------------------:|:-----------------------:|:--------------:
+Regresión logística | 65.55                   | 70.92
+Random Forest       | 66.71                   | 72.60
+Gradient Boosting   | 66.44                   | 72.84
+MLP                 | 64.83                   | 70.25
+KNN                 | 63.95                   | 68.80
+RBF-Network         | 64.83                   | 70.14
