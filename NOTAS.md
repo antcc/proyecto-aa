@@ -13,7 +13,6 @@
 - Comentar que los valores de ccp_alpha para RandomForest se han obtenido llamando a
 `DecisionTreeClassifier(max_depth = 20).cost_complexity_pruning_path(X_train, y_train)["ccp_alphas"]`. El criterio de selección de predictores por defecto es sqrt.
 - Ventajas e inconvenientes de cada modelo. Pérdida de interpretabilidad, tiempo, etc. Argumentos a favor de los modelos. (variables nuimércias, balñanceo...)
-- Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
 - Elegir el modelo en cada caso: si hay variables numéricas, elijo tal, si no, cual..
 # Formato de la documentación
 
