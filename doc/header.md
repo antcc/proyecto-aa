@@ -28,6 +28,7 @@ header-includes:
   - \usepackage[spanish, es-tabla]{babel}
   - \usepackage[T1]{fontenc}
   - \usepackage[lining]{ebgaramond}
+  - \usepackage{bm}
   - \usepackage{stmaryrd}
   - \newcommand{\overbar}[1]{\mkern 1.5mu\overline{\mkern-1.5mu#1\mkern-1.5mu}\mkern 1.5mu}
   - \usepackage{unicode-math}
@@ -35,5 +36,6 @@ header-includes:
   #- \setmathfont{Libertinus Math}
 ---
 
+\vspace{-2em}
 \decimalpoint
 \newpage

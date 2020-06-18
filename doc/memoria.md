@@ -200,6 +200,8 @@ $$
 
 - **Poda de coste-complejidad minimal**: se hace poda en las ramas de cada árbol de decisión de forma que se minimice la función de coste $$ R_\lambda(T) = R(T) + \lambda|T|,$$ siendo $R(T)$ el ratio mal clasificado en las hojas y $|T|$ el número de nodos hoja.
 
+- **Learning rate**: en los clasificadores boosting, reduce la contribución de cada clasificador débil en un factor $\lambda$.
+
 El valor de $\lambda > 0$ es un hiperparámetro del modelo, que controla la intensidad de la regularización. Encontrar un valor adecuado es una tarea complicada, pues según varíe podríamos tener sobreajuste o caer en el fenómeno opuesto: tener *underfitting* porque el modelo sea poco flexible y no consiga ajustar bien los datos de entrenamiento.
 
 En la sección [Ajuste de modelos] comentaremos para cada modelo concreto la regularización utilizada junto con los argumentos que justifican la decisión.
@@ -378,7 +380,7 @@ Los resultado del preanálisis los podemos ver en la Figura \ref{fig:pre_rf1} y 
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.7\textwidth]{img/RandomForest_heatmap.png}
-  \caption{Mapa de calor según n\_estimators y max\_depth en RandomForest.}
+  \caption{Mapa de calor para acc-cv según n\_estimators y max\_depth en RandomForest.}
   \label{fig:pre_rf2}
 \end{figure}
 
@@ -395,9 +397,26 @@ También añadimos una nueva posibilidad de regularización, la poda de coste-co
 
 ## Boosting
 
+La siguiente clase de modelos no lineales que consideramos vuelve a ser una clase de clasificadores *ensemble*, obtenidos como uniones de varios clasificadores. En este caso, la técnica de *boosting* se basa en la agregación secuencial de varios clasificadores *débiles* (árboles de decisión con profundidad muy reducida) en versiones sucesivas modificadas de los datos (aplicando distintos pesos a los mismos). Lo que hacemos en este caso añadiendo más estimadores es intentar reducir el sesgo del estimador combinado, pues la varianza será pequeña al ser clasificadores muy simples.
+
+De forma esquemática, se utiliza un algoritmo *greedy* que en cada paso ajusta un clasificador simple y lo añade al agregado anterior de forma ponderada,
+$$
+F_m(x) = F_{m-1}(x) + \alpha_m h_m(x),
+$$
+
+donde el nuevo clasificador $h_m$ y la constante $\alpha_m$ se ajustan para minimizar una cierta función de pérdida, cuya forma genérica es
+$$
+\sum_{n=1}^N L(y_n, F_{m-1} + \alpha h(x_n))
+$$
+
+Esta clase de modelo puede considerarse como un enfoque dual a las agregaciones que realizan los Random Forest, y también ha demostrado dar muy buenos resultados. Retiene todas las ventajas de utilizar árboles de decisión como clasificadores principales, pero propone un enfoque novedoso para intentar mejorar la calidad del ajuste, por lo que pensamos que merece la pena probarlo en nuestro problema.
+
 ### AdaBoost {.unlisted .unnumbered}
 
-Usamos AdaBoost con el objeto `AdaBoostClassifier`, fijando la tasa de aprendizaje por defecto a `1` y usando como clasificador *flojo* un árbol de decisión `DecisionTreeClassifier`. Los hiperparámetros que dejamos para buscar son: `max_depth` la profundidad máxima de los clasificadores, y `n_estimators` el nº de los clasificadores. Probamos con profundidades muy bajas y un tamaño alto de clasificadores:
+La función de pérdida que intenta minimizar este modelo es la pérdida exponencial: $$L_{exp}(y_n, h(x_n)) = \exp(-y_n h(x_n)).$$
+Como ya comentamos, se ajustan una serie de clasificadores débiles en sucesivas versiones modificadas de los datos. Los pesos de modificación se adaptan de forma que en iteraciones sucesivas se aumenta el peso de los puntos de entrenamiento cuya clase se va prediciendo incorrectamente, y se decrementa el peso de las predicciones correctas. Se trata de un modelo flexible cuya eficiencia puede ser probada matemáticamente.
+
+Usamos AdaBoost con el objeto `AdaBoostClassifier`, usando como clasificador débil un árbol de decisión `DecisionTreeClassifier`. Los hiperparámetros que dejamos para buscar n el análisis inicial son `max_depth`, la profundidad máxima de los clasificadores, y `n_estimators` el número de clasificadores. Probamos con profundidades muy bajas y un tamaño alto de clasificadores:
 
 ```python
 {"clf": [AdaBoostClassifier(random_state = SEED,
@@ -406,11 +425,11 @@ Usamos AdaBoost con el objeto `AdaBoostClassifier`, fijando la tasa de aprendiza
  "clf__n_estimators": [100, 200, 300, 400, 500]}
 ```
 
-La base de AdaBoost es formar un buen clasificador entrenando muchos clasificadores *flojos* (*boosting*), por ejemplo arboles de decisión con una regla, repetídamente con muchas modificaciones de los datos (aplicando distintos pesos a los datos); de manera que la predicción de las etiquetas se hace con el voto mayoritario de todos los clasificadores. Además la función de error que intenta minimizar es la función exponencial: $$L(y, f(x)) = \exp(-y f(x))$$
+Los resultados obtenidos pueden verse en la Figura \ref{fig:pre_adaboost1} y la Figura \ref{fig:pre_adaboost2}, que nos dejan claro que la mejor elección son funciones *stump*: árboles con profundidad 1.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/AdaBoostClassifier_acc_time.png}
+  \includegraphics[width=.8\textwidth]{img/AdaBoostClassifier_acc_time.png}
   \caption{acc-cv/tiempo según n\_estimators y max\_depth en AdaBoost.}
   \label{fig:pre_adaboost1}
 \end{figure}
@@ -422,7 +441,7 @@ La base de AdaBoost es formar un buen clasificador entrenando muchos clasificado
   \label{fig:pre_adaboost2}
 \end{figure}
 
-Los resultados del preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2} nos dejan claro que los mejores resultados se benefician de árboles lo más simple posibles (una regla) y dentro de este, el mejor valor se alcanza con 200 árboles. Por tanto dejamos dejamos 1 como profunidad máxima y variamos el nº de árboles entorno a 200:
+Por otra parte, el número óptimo de árboles resulta ser unos 200, luego para la búsqueda del mejor clasificador dejamos que este parámetro varíe en un entorno de ese valor. Además, añadimos el hiperparámetro del *learning rate* como forma de regularización del modelo, permitiendo que se pueda escalar a la mitad la contribución de cada clasificador débil.
 
 ```python
 {"clf": [AdaBoostClassifier(random_state = SEED)],
@@ -430,11 +449,15 @@ Los resultados del preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2
  "clf__learning_rate": [0.5, 1.0]}
 ```
 
-También probamos añadiendo `learning_rate` como hiperparámetro para probar con otra tasa más pequeña.
-
 ### Gradient Boosting {.unlisted .unnumbered}
 
-También usamos GradientTreeBoosting con el objeto `GradientBoostingClassifier` fijando la función de perdida a `'deviance'` (regresión logística), la tasa de aprendizaje a 0.1 y usando para entrenar todos los datos. Los hiperparámetros que variamos son la profundidad del los árboles `max_depth` y el nº de árboles `n_estimators`:
+Gradient Boosting surge como una generalización de los modelos de *boosting* que permite usar funciones de pérdida arbitrarias, siempre que sean derivables. Realiza una aproximación del gradiente utilizando la fórmula de Taylor y obtiene una forma cerrada para la optimización.
+
+Para el ajuste usamos el objeto `GradientBoostingClassifier` fijando la función de pérdida a `deviance`, que es un alias para la función de pérdida logística que ya comentamos anteriormente (la única disponible distinta de la exponencial):
+
+$$L_{log}(y_n, h(x_n)) = \log(1 + \exp(-y_nh(x_n))).$$
+
+Los hiperparámetros que variamos inicialmente son la profundidad de los árboles, `max_depth`, y el número de árboles, `n_estimators`:
 
 ```python
 {"clf": [GradientBoostingClassifier(random_state = SEED)],
@@ -442,11 +465,11 @@ También usamos GradientTreeBoosting con el objeto `GradientBoostingClassifier` 
  "clf__n_estimators": [100, 200, 300, 400, 500]}
 ```
 
-GradientTreeBoosting surje como una generalización del método de boosting usando árboles como clasificadores, que permite utilizar distintas funciones de error para el entrenamiento. En cualquier caso la idea básica es la misma que AdaBoost, en concreto cambiamos la función de ajuste a la de regresión logística: $$L(y, f(x)) = \log(1 + \exp(y f(x)))$$
+En los resultados del preanálisis, vistos en la Figura \ref{fig:pre_gradboosting1} y la Figura \ref{fig:pre_gradboosting2}, observamos que no es ninguna sorpresa que para los árboles más profundos se obtienen mejores resultados con menos árboles, y para los más simples se necesitan muchos más. En este caso la profundidad de interacción óptima no es necesariamente igual a 1.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/GradientBoostingClassifier_acc_time.png}
+  \includegraphics[width=.8\textwidth]{img/GradientBoostingClassifier_acc_time.png}
   \caption{acc-cv/tiempo según n\_estimators y max\_depth en GradientBoosting.}
   \label{fig:pre_gradboosting1}
 \end{figure}
@@ -454,11 +477,11 @@ GradientTreeBoosting surje como una generalización del método de boosting usan
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.7\textwidth]{img/GradientBoostingClassifier_heatmap.png}
-  \caption{Mapa de calor según n\_estimators y max\_depth en GradientBoosting.}
+  \caption{Mapa de calor para acc-cv según n\_estimators y max\_depth en GradientBoosting.}
   \label{fig:pre_gradboosting2}
 \end{figure}
 
-En los resultados del preanálisis \ref{fig:pre_gradboosting1} y \ref{fig:pre_gradboosting2} vemos que no es ninguna sorpresa que para los árboles más profundos se obtienen mejores resultados con menos árboles, y para los más simples se necesitan muchos más. En cualquier caso probamos una configuración con pocos árboles (100) para profundidad alta y otra con muchos (300) para profundidad baja:
+En vista de lo obtenido, probamos una configuración con pocos árboles (100) para profundidad alta y otra con muchos (300) para profundidad baja:
 
 ```python
 {"clf": [GradientBoostingClassifier(random_state = SEED,
@@ -473,13 +496,30 @@ En los resultados del preanálisis \ref{fig:pre_gradboosting1} y \ref{fig:pre_gr
  "clf__max_depth": [1, 2]}
 ```
 
-Hemos añadido los hiperparámetros `learning_rate`, la tasa de aprendizaje y `subsample`, la proporción de datos usados en el entrenamiento de un clasificador, para intentar bajar la varianza y ampliar un poco más el espacio de búsqueda.
+Hemos añadido los hiperparámetros `learning_rate`, la tasa de aprendizaje (misma interpretación que en AdaBoost, pero ahora con valores más pequeños porque usamos profundidades más grandes) y `subsample`, la proporción de datos usados en el entrenamiento de un clasificador, para intentar bajar la varianza y ampliar un poco más el espacio de búsqueda. Según [@friedman2002], una combinación del *subsampling* con un *learning rate* menor que 1 proporcionan una versión estocástica que puede aumentar la calidad del modelo.
 
-## Perceptrón multicapa (MLP)
+## Perceptrón multicapa
 
-Perceptrón multicapa con 3 capas (2 ocultas y la de salida) con el objeto `MLPClassifier` con los siguientes parámetros fijados: `learning_rate_init = 0.01` (tasa de aprendizaje inicial), `solver = sgd` (ajuste con SGD), `max_iter = 300` (nº máximo de iteraciones), `learning_rate = 'adaptive'` (decrementa la tasa de aprendizaje cuando no baja el error), `activation = relu` (función de activación ReLU) y `tol = 1e-3` (tolerancia para la convergencia).
+Los clasificadores basados en perceptrón multicapa ajustan funciones lineales por capas, introduciendo una activación no lineal al final de cada capa para diversificar la clase de funciones que ajustan. Nosotros utilizaremos clasificadores con dos capas ocultas, y una capa de salida con una neurona que nos proporciona la clase de los puntos que queramos predecir. Entonces, la clase de funciones ajustada es
+$$
+\left\{ \operatorname{signo}\left( W_{(3)}^T \theta \left( W_{(2)}^T \theta \left( W_{(1)}^T x \right) \right) \right), W_{(i)} \in \mathcal{M}_{n_{i-1} \times n_i}, \, n_0 = d, n_3 = 1 \right\},
+$$
 
-Dejamos como hiperparámetro el nº de neuronas en las capas ocultas `hidden_layer_sizes`, tomando el mismo tamaño para ambas capas y haciendo una búsqueda aleatoria en el rango $[50, 101]$:
+donde $\theta$ es la función de activación elegida. Para ajustar los pesos, se utiliza la técnica de *backpropagation* para propagar hacia atrás el error, que en este caso es el error cuadrático entre predicciones y etiquetas:
+$$
+L_(y_n, h(x_n)) = (y_n - h(x_n))^2
+$$
+
+Utilizamos el objeto `MLPClassifier` con los siguientes parámetros fijos:
+
+- `solver = sgd`. Elegimos como optimizador descenso estocástico de gradiente, una técnica fiable y con probada eficiente, que proporciona un tiempo de ejecución razonable.
+- `learning_rate = 'adaptive'`. Especifica que la tasa de aprendizaje es *adaptable*, es decir, va disminuyendo conforme aumentan las iteraciones si el error no disminuye.
+- `learning_rate_init = 0.01`. Es la tasa inicial de aprendizaje. La incrementamos ligeramente respecto al valor por defecto para permitir que vaya decreciendo desde un valor más elevado.
+- `max_iter = 300`. Número máximo de iteraciones para SGD.
+- `activation = relu`. Función de activación ReLU al final de cada capa, que viene dada por la expresión $ReLu(x) = \max\{0, x\}$. Es una de las más usadas en la actualidad y suele proporcionar mejores resultados que otras como `tanh`.
+- `tol = 1e-3`. Tolerancia para la convergencia, que reducimos porque no nos interesa seguir optimizando el *accuracy* más allá de las milésimas.
+
+Dejamos como hiperparámetro en el análisis inicial el número de neuronas en las capas ocultas, `hidden_layer_sizes`, tomando el mismo tamaño para ambas capas y haciendo una búsqueda aleatoria en el rango $[50, 100]$.
 
 ```python
 {"clf": [MLPClassifier(random_state = SEED,
@@ -494,12 +534,12 @@ Dejamos como hiperparámetro el nº de neuronas en las capas ocultas `hidden_lay
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/MLP_acc_time.png}
+  \includegraphics[width=.8\textwidth]{img/MLP_acc_time.png}
   \caption{acc-cv/tiempo según hidden\_layer\_sizes en MLP.}
   \label{fig:pre_mlp}
 \end{figure}
 
-El resultado de \ref{fig:pre_mlp} nos deja dos tamaños con los mejores resultados en sus entornos, en 57 y 88, por tanto probamos con estas configuraciones:
+El resultado del preanálisis en la Figura \ref{fig:pre_mlp} nos deja dos tamaños con los mejores resultados en sus entornos, en 57 y 88, por tanto probamos con estas configuraciones. Además, añadimos un parámetro `alpha` que controla la regularización (de tipo L2), pues estos modelos son conocidos por su tendencia al *overfitting*. Permitimos que este parámetro varíe en el espacio logarítmico $[-2, 2]$, y elegimos 10 configuraciones de manera uniforme. También aumentamos el *learning rate* porque ahora trabajamos con más datos y preferimos empezar desde un valor más elevado.
 
 ```python
 {"clf": [MLPClassifier(random_state = SEED,
@@ -513,27 +553,25 @@ El resultado de \ref{fig:pre_mlp} nos deja dos tamaños con los mejores resultad
  "clf__alpha": loguniform(1e-2, 1e2)}
 ```
 
-Además añadimos el hiperparámetro `alpha` relativo a la regularización L2 para que el modelo generalice mejor.
+## K-Nearest Neighbors
 
-## K-Nearest Neighbors (KNN)
+Después de considerar modelos lineales, modelos basados en *ensembles* y modelos sofisticados como el perceptrón multicapa, pasamos a un modelo no lineal bastante simple, pero que cambia el enfoque: se basa en medidas de similaridad para clasificar los puntos. La fase de entrenamiento de este clasificador consiste en memorizar los puntos de entrenamiento, y a la hora de predecir, para cada punto considera sus $k$ vecinos más cercanos de entre los que tenía guardados, y elige como clase la clase mayoritaria entre ellos. De esta forma realiza una partición del espacio de entrada, cuya forma dependerá del valor de $k$.
 
-Algoritmo de los k vecinos más cercanos mediante el objeto `KNeighborsClassifier`, usando la métrica euclidea, y el espacio de búsqueda para el hiperparámetro `k`, considerando la regla a ojo que recomienda usar $k = \sqrt{N}$, vamos desde 1 hasta 200 pasando por $k \approx 90$ (tamaño dataset preanálisis):
+Aplicamos el algoritmo mediante el objeto `KNeighborsClassifier` usando la métrica euclídea, y especificamos el espacio de búsqueda para el hiperparámetro $k$ considerando la regla heurística que recomienda usar $k = \sqrt{N}$. Vamos desde 1 hasta 200 pasando por $k \approx 90$ (aproximadamente la raíz cuadrada del tamaño del *dataset* de preanálisis):
 
 ```python
 {"clf": [KNeighborsClassifier()],
  "clf__n_neighbors": [1, 3, 5, 10, 20, 25, 30, 40, 50, 100, 200]}
 ```
 
-K-nn considera los $k$ vecinos más cercanos al punto que se quiera etiquetar y se obtiene la etiqueta en función de las etiquetas de estos vecinos (moda, por ejemplo), por lo que las funciones que ajustamos son las que particionan el espacio de cualquier manera.
-
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/KNN_acc_time.png}
+  \includegraphics[width=0.8\textwidth]{img/KNN_acc_time.png}
   \caption{acc-cv/tiempo según k en KNN.}
   \label{fig:pre_knn}
 \end{figure}
 
-Los resultados preanálisis \ref{fig:pre_knn} nos confirman la regla experimental, ya que el óptimo está en 100; por tanto para el conjunto training usamos un entorno de $k \approx 141$, quedando el espacio de búsqueda como lo siguiente:
+Los resultados de preanálisis en la Figura \ref{fig:pre_knn} nos confirman la regla experimental, ya que el óptimo está en torno a $k=100$; por tanto para el conjunto de entrenamiento usamos un entorno de $k \approx 141$ (raíz cuadrada del tamaño de dicho conjunto), pero permitiendo cierta variabilidad hacia abajo para no obligar al modelo a escoger demasiados vecinos. Por tanto, el espacio de búsqueda queda como sigue:
 
 ```python
 {"clf": [KNeighborsClassifier()],
@@ -541,24 +579,37 @@ Los resultados preanálisis \ref{fig:pre_knn} nos confirman la regla experimenta
  "clf__weights": ['uniform', 'distance']}
 ```
 
-Además añadimos para dar más variabilidad en la búsqueda, el hiperparámetro `weights` que permite cambiar el peso de los $k$-vecinos encontrados: `uniform` todos importan por igual, `distance` los vecinos importan inversamente proporcional a la distancia.
+Hemos añadido para dar más variabilidad en la búsqueda el hiperparámetro `weights`, que permite ponderar la contribución de los $k$ vecinos encontrados: con `uniform` todos importan por igual, mientras que con `distance` los vecinos importan de forma inversamente proporcional a su distancia al punto en cuestión.
 
-## Redes de funciones de Base Radial (RBF)
+## Redes de funciones de Base Radial
 
-El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO. Hemos considerado el algoritmo K-medias (`KMeans`) para encontrar los $k$ centroides, la sugerencia de fijar $r = \dfrac{R}{k^{1/d}}$ y finalmente el algoritmo lineal considerado con el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`) ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal clasificador.
+Por último, consideramos un clasificador también basado en la similaridad, pero utilizando estrategias de *kernel* para mejorar el rendimiento. Se trata de las redes de funciones de base radial (RBF-Network), que en nuestro caso se basan en el núcleo gaussiano
+$$
+\phi(z) = e^{\frac{-1}{2}z^2}.
+$$
+
+La idea es fijar una serie de centros $\mu_j$ en los datos de entrada, y considerarlos como referencia para aplicar el núcleo utilizando la distancia de cada punto a los centros, reescalada por un parámetro $r$. Concretamente, la clase de funciones que ajustan estos clasificadores es
+$$
+\left\{ w_0 + \sum_{j=1}^k w_j \phi\left(\frac{||x - \mu_j||}{r}\right): w_0, w_j \in \mathbb{R}, \ \mu_j \in \mathbb{R}^d, \ j = 1,\dots, k\right\}.
+$$
+
+Podemos entenderlo como una especie de red *feed-forward*, que añade complejidad sobre los modelos lineales de forma similar a las transformaciones no lineales que consideramos para ellos, pero haciendo que estas transformaciones dependan de los datos de entrenamiento (a través de los centros $\mu_j$). Como los centros son un parámetro del modelo y estos aparecen dentro de una función no lineal, este modelo no es lineal en sus parámetros.
+
+Este clasificador no está implementado en `sklearn`, por lo que construimos una clase `RBFNetworkClassifier` siguiendo el algoritmo de referencia en [@mostafa2012], que mostramos en el Algoritmo \ref{alg:rbf}. Hemos considerado el algoritmo de K-medias (`KMeans`) para encontrar los $k$ centroides, y la sugerencia de fijar
+$$r = \dfrac{R}{k^{1/d}}, \text{ con } R = \max_{i,j} ||x_i - x_j||.$$ Finalmente, el algoritmo lineal escogido en el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`), ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal como clasificador.
 
 \begin{algorithm}[H]
 \SetAlgoLined
  $\mu = \mu_1, \ldots, \mu_k$ = KMeans($X, k$)\;
  $R = \max \limits_{i, j} ||x_i - x_j||$\;
  $r = \dfrac{R}{k^{1/d}}$\;
- $Z$ = KernelRBF($\dfrac{d(X, \mu)}{r}$)\;
+ $Z$ = KernelRBF$\left(\frac{d(X, \mu)}{r}\right)$)\;
  Fit LinealRegresion($Z, y$)\;
 \caption{Fit RBF-Network($X, y, k$)}
 \label{alg:rbf}
 \end{algorithm}
 
-Los hiperparámetros a considerar son tanto el nº de centroides `k` como el parámetro de regularización en el modelo lineal `alpha` (muy necesario cuando `k` aumenta), cuya configuración de búsqueda inicial es:
+Una descripción más específica de la implementación se puede encontrar en el [Anexo: Funcionamiento del código]. Los hiperparámetros a considerar son tanto el número de centroides `k` como el parámetro de regularización en el modelo lineal `alpha` (muy necesario cuando `k` aumenta), cuya configuración de búsqueda inicial es:
 
 ```python
 {"clf": [RBFNetworkClassifier(random_state = SEED)],
@@ -566,11 +617,9 @@ Los hiperparámetros a considerar son tanto el nº de centroides `k` como el par
  "clf__alpha": [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]}
 ```
 
-Una implementacion más específica se puede encontrar en [Anexo: Funcionamiento del código].
-
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/RBF_acc_time.png}
+  \includegraphics[width=.8\textwidth]{img/RBF_acc_time.png}
   \caption{acc-cv/tiempo según k y alpha en RBF.}
   \label{fig:pre_rbf1}
 \end{figure}
@@ -578,11 +627,11 @@ Una implementacion más específica se puede encontrar en [Anexo: Funcionamiento
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.7\textwidth]{img/RBF_heatmap.png}
-  \caption{Mapa de calor según k y alpha en RBF.}
+  \caption{Mapa de calor para acc-cv según k y alpha en RBF.}
   \label{fig:pre_rbf2}
 \end{figure}
 
-Los resultados del preanálisis \ref{fig:pre_rbf1} y \ref{fig:pre_rbf2} nos indican como los mejores resultados se encuentran con `k` $\geq 50$ y `alpha` $\leq 10^{-5}$, donde además vemos que los resultados buenos tienden a estabilizarse. Por tanto el espacio de búsqueda final queda así:
+Los resultados del preanálisis en la Figura \ref{fig:pre_rbf1} y la Figura \ref{fig:pre_rbf2} nos indican como los mejores valores se obtienen con `k` $\geq 50$ y `alpha` $\leq 10^{-5}$, donde además vemos que los resultados buenos tienden a estabilizarse. Por tanto el espacio de búsqueda final queda:
 
 ```python
 {"clf": [RBFNetworkClassifier(random_state = SEED)],
@@ -590,13 +639,11 @@ Los resultados del preanálisis \ref{fig:pre_rbf1} y \ref{fig:pre_rbf2} nos indi
  "clf__alpha": [0.0, 1e-10, 1e-5]}
 ```
 
-## Aleatorio {.unlisted .unnumbered}
-
-Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clasificador base para comparar el resto de modelos. Se espera que este clasificador tenga un acierto de 50% (2 clases) por lo que cualquier modelo debería obtener un acierto por encima de este para considerarlo bueno.
-
 # Análisis de resultados
 
 Las mejores configuraciones de cada modelo estan en la tabla \ref{table:mejores_hiperparam}, cuyos resultados de las métricas acc y AUC en training/test se recojen en la tabla \ref{table:res_modelos}.
+
+Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clasificador base para comparar el resto de modelos. Se espera que este clasificador tenga un acierto de 50% (2 clases) por lo que cualquier modelo debería obtener un acierto por encima de este para considerarlo bueno.
 
 \begin{table}[h!]
 \centering
@@ -711,3 +758,7 @@ Analizando también la metrica secundaria, vemos que el orden de los valores de 
 # Anexo: Funcionamiento del código {.unnumbered}
 
 # Bibliografía {.unnumbered}
+
+---
+nocite: '@*'
+---
