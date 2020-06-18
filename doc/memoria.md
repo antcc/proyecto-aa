@@ -232,7 +232,7 @@ $$
 \Phi_2(x) = (1, x_1, \dots, x_{d}, x_1^2, \dots, x_{d}^2, x_1x_2, x_1x_3, \dots, x_1x_{d}, x_2x_3, \dots, x_{d-1}x_{d}),
 $$
 
-de forma que la clase de funciones que ajustan nuestros modelos es
+de forma que la clase de funciones que ajustan nuestros modelos lineales es
 $$
 \mathcal {H_{lin}} = \{ \operatorname{signo}(w^T \Phi_2(x)): w \in \mathbb{R}^{\tilde{d}} \},
 $$
@@ -269,6 +269,7 @@ El parámetro de regularización, cuyo inverso es lo que en el código se alude 
                             max_iter = max_iter)],
  "clf__C": np.logspace(-5, 1, 40)}
 ```
+
 Los resultados obtenidos en el preanálisis se pueden observar en la Figura \ref{fig:pre_lr}, y nos indica que desde el orden de $10^{-4}$ en adelante, los resultados son más o menos igual de buenos, alcanzando un máximo entre $10^{-4}$ y $10^{-3}$.
 
 \begin{figure}[h!]
@@ -347,9 +348,16 @@ Los resultados del preanálisis nos indican un máximo cerca de $10^{-1}$ y 1, p
  "clf__alpha": np.logspace(-5, 1, 7)}
 ```
 
-## Random Forest (RF)
+## Random Forest
 
-Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol. Entonces consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth` (regularización), inicialmente teniendo el siguiente espacio:
+El primer modelo no lineal que consideramos es Random Forest (RF). Este modelo se construye como un *ensemble* árboles de decisión, utilizando la técnica de *bootstrap*. Mediante dicha técnica construimos N árboles a partir de una única muestra (realizando muestreo aleatorio con reemplazamiento), y para la construcción de cada árbol realizamos además una selección aleatoria de características. La salida del clasificador será un agregado de los resultados de cada árbol individual; en nuestro caso la clase mayoritaria.
+
+Los árboles de decisión particionan el espacio de entrada por hiperplanos paralelos a los ejes, de forma que la clase de funciones que ajustan los árboles de clasificación es:
+$$\left\{ \arg\max_k \frac{1}{N_m} \sum_{x_n \in R_m} \llbracket y_n = k \rrbracket\ : \{R_m: m = 1, \dots, M\} \text{ es una partición de } \mathcal X\right\},$$
+
+donde $N_m$ es el número de ejemplos que caen en la región $R_m$ y $k \in \{-1, 1\}$ son las clases. Estos árboles consiguen un sesgo muy bajo al ir aumentando la profundidad, y al incorporar varios de ellos con la técnica de selección de características de Random Forest reducimos también la varianza, por lo que al final obtenemos un clasificador de muy buena calidad y que esperamos que obtenga buenos resultados. Una cosa que hay que tener en cuenta es que los árboles son muy propensos al *overfitting*, por lo que debemos aplicar técnicas de regularización para evitar este fenómeno y garantizar una buena generalización.
+
+Consideramos el objeto `RandomForestClassifier`, fijando el número de características de cada árbol a $\sqrt{d}$ (usando la regla heurística vista en clase) y el criterio *gini* para decidir las divisiones del árbol (la otra opción sería el criterio de entropía, pero sabemos que en clasificación binaria son equivalentes). Consideramos como hiperparámetros más relevantes el número de árboles totales, `n_estimators`, y la profundidad máxima de cada árbol, `max_depth` (como regularización). Para el estudio inicial tenemos el siguiente espacio:
 
 ```python
 {"clf": [RandomForestClassifier(random_state = SEED)],
@@ -357,11 +365,12 @@ Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el
  "clf__n_estimators": [100, 200, 300, 400, 500, 600]}
 ```
 
-La clase de funciones que estamos ajustando no es más que la agrupación (*ensemble*) de árboles de decisión que son las funciones que particionan el espacio por hiperplanos paralelos a los ejes. En este sentido partimos desde un sesgo nulo y muy alta varianza que intentamos bajar con el *bagging* y el uso de distintos árboles, por lo que realmente no hay una función de error que estemos reduciendo.
+Los resultado del preanálisis los podemos ver en la Figura \ref{fig:pre_rf1} y la Figura \ref{fig:pre_rf2}, que nos muestran que en general exceptuando la profundidad máxima 5, el resto de configuraciones proporcionan buenos resultados, destacando profundidad máxima 20 con 400 árboles y profundidad máxima $\geq 20$ con 600 árboles.
+
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/RandomForest_acc_time.png}
+  \includegraphics[width=0.8\textwidth]{img/RandomForest_acc_time.png}
   \caption{acc-cv/tiempo según n\_estimators y max\_depth en RandomForest.}
   \label{fig:pre_rf1}
 \end{figure}
@@ -373,20 +382,16 @@ La clase de funciones que estamos ajustando no es más que la agrupación (*ense
   \label{fig:pre_rf2}
 \end{figure}
 
-El preanálisis \ref{fig:pre_rf1}, \ref{fig:pre_rf2} nos muestra que en general expectuando la profundidad máxima 5, el resto de configuraciones son casi igual de buenas (diferencias de centésimas), destacando profundidad máxima 20 con 400 árboles y profundidad máxima $>= 20$ con 600 árboles.
+Sabemos que al aumentar el número de árboles conseguimos reducir el término de la varianza aunque a coste de incrementar el tiempo de computación; pero en este caso no nos importa pagar el precio y permitimos variar entre 400 y 600 estimadores. Además, como conforme aumenta la profundidad de los árboles conseguimos menos error pero más varianza y para la profunidad máxima 20 obtenemos de los mejores resultados, optamos por fijar este valor.
 
-Sabemos que al aumentar el nº de árboles conseguimos reducir el término de la varianza aunque a coste de incrementar el tiempo de computación; que en este caso no nos importa pagar el precio. Además, como conforme aumenta la profundidad de los árboles conseguimos menos error pero más varianza y para la profunidad máxima 20 obtenemos de los mejores resultados optamos por este valor (menor varianza cuanto menor profundidad).
-
-Finalmente la configuración de hiperparámetros quedaría:
+También añadimos una nueva posibilidad de regularización, la poda de coste-complejidad, para dar la posibilidad de disminuir aún más el sobreajuste. Los parámetros efectivos para el valor `ccp_alpha` se han encontrado mediante una llamada al método `cost_complexity_pruning_path` de la clase `DecisionTreeClassifier`. Finalmente la configuración de hiperparámetros quedaría:
 
 ```python
 {"clf": [RandomForestClassifier(random_state = SEED,
-                                    max_depth = 20)],
+                                max_depth = 20)],
      "clf__n_estimators": [400, 600],
      "clf__ccp_alpha": [0.0, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2]}
 ```
-
-Hemos añadido el hiperparámetro `cc_alpha` que se usa para la poda de mínimo coste computacional, para experimentar con más regularización.
 
 ## Boosting
 
@@ -413,7 +418,7 @@ La base de AdaBoost es formar un buen clasificador entrenando muchos clasificado
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.7\textwidth]{img/AdaBoostClassifier_heatmap.png}
-  \caption{Mapa de calor según n\_estimators y max\_depth en AdaBoost.}
+  \caption{Mapa de calor para acc-cv según n\_estimators y max\_depth en AdaBoost.}
   \label{fig:pre_adaboost2}
 \end{figure}
 
