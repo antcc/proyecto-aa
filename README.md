@@ -20,8 +20,8 @@ Realizado junto a [@MiguelLentisco](https://github.com/MiguelLentisco). Curso 20
 
 ## Resultados
 
- Modelo             | Accuracy en *test* (%)  | AUC en *test*
-:------------------:|:-----------------------:|:--------------:
+ Modelo             | Accuracy en *test* (%)  | AUC en *test* (%)
+:------------------:|:-----------------------:|:-----------------:
 Regresión logística | 65.55                   | 70.92
 Random Forest       | 66.71                   | 72.60
 Gradient Boosting   | 66.44                   | 72.84
