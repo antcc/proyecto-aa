@@ -227,6 +227,8 @@ En la sección [Ajuste de modelos] veremos cómo se especifica en el código el 
 
 Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentro de cada una el procedimiento de ajuste y la justificación de los pasos seguidos. La métrica usada para decidir el mejor modelo será, de forma natural, el *accuracy* medio en los conjuntos de validación. Fijamos el valor de $K$ en 5 para la etapa de *cross-validation*, pues se trata de un valor no demasiado elevado que no dispara el tiempo de entrenamiento, pero lo suficiente como para conseguir unos resultados fiables.
 
+De las clases de modelos propuestas, la única que no analizamos es la de SVM con distintos *kernels* no lineales, pues consideramos que debido a la gran cantidad de puntos que tenemos sería computacionalmente poco viable.
+
 ## Modelos lineales
 
 En primer lugar consideramos modelos lineales, que son simples pero muchas veces efectivos y suficientemente buenos para muchos problemas. Vamos a intentar aumentar un poco la complejidad de los modelos para intentar conseguir un mejor ajuste. Para esto, consideramos transformaciones polinómicas de las variables de entrada, concretamente polinomios de grado 2 (no pensamos que un grado mayor merezca la pena en términos de eficiencia, ya que tendríamos demasiadas variables). De esta forma el modelo final seguirá siendo lineal en los pesos, pero permite realizar una clasificación más potente en el espacio transformado y sacar a la luz relaciones entre las variables que resulten en una mejor predicción. Concretamente, si $\mathcal X$ es el espacio de entrada y $x = (x_1,\dots, x_d) \in \mathcal X$, consideramos la función
@@ -236,7 +238,7 @@ $$
 
 de forma que la clase de funciones que ajustan nuestros modelos lineales es
 $$
-\mathcal {H_{lin}} = \{ \operatorname{signo}(w^T \Phi_2(x)): w \in \mathbb{R}^{\tilde{d}} \},
+\mathcal {H_{lin}} = \left\{ \operatorname{signo}(w^T \Phi_2(x)): w \in \mathbb{R}^{\tilde{d}} \right\},
 $$
 
 con

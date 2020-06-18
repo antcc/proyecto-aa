@@ -433,6 +433,8 @@ def fit_cv(X_train, y_train, clfs,
             {k: model[k] for k in model.keys() if k != 'clf'}))
         print("* Accuracy en CV: {:.3f}%\n".format(100.0 * best_clf.best_score_))
 
+        vs.wait()
+
     return best_clf
 
 def fit_model_selection(X_train, X_val, y_train, y_val):
@@ -999,6 +1001,8 @@ def compare(clfs, X_train, X_test, y_train, y_test):
                 [X_train, X_test],
                 [y_train, y_test],
                 ["training", "test"])
+
+        vs.wait()
 
     if SHOW != Show.NONE:
         # Mostramos gráfica de AUC del mejor modelo (RandomForest) y
