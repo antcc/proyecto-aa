@@ -554,10 +554,32 @@ Los resultados del preanálisis \ref{fig:pre_rbf1} y \ref{fig:pre_rbf2} nos indi
  "clf__alpha": [0.0, 1e-10, 1e-5]}
 ```
 
+## Aleatorio {.unlisted .unnumbered}
+
+Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clasificador base para comparar el resto de modelos. Se espera que este clasificador tenga un acierto de 50% (2 clases) por lo que cualquier modelo debería obtener un acierto por encima de este para considerarlo bueno.
+
 # Análisis de resultados
 
+Las mejores configuraciones de cada modelo estan en la tabla \ref{table:mejores_hiperparam}, cuyos resultados de las métricas acc y AUC en training/test se recojen en la tabla \ref{table:res_modelos}.
 
-Resultados de la mejor configuración de cada modelo en training/test en \ref{table:res_modelos}.
+\begin{table}[h!]
+\centering
+ \begin{tabular}{||c||c||}
+ \hline
+ Modelo & Hiperparámetros \\ [0.5ex]
+ \hline\hline
+ Modelo Lineal & LogisticRegression, C = 0.1 \\
+ RandomForest & max\_depth = 20, n\_estimators = 600, ccp\_alpha = 0 \\
+ Boosting &  GradientBoostingClassifier, max\_depth = 4, n\_estimators = 100, subsample = 0.75 \\
+ MLP & hidden\_layer\_sizes = (88, 88), alpha = 3.0 \\
+ KNN & n\_neighbors = 150, weights = 'distance' \\
+ RBF-Network & k = 300, alpha = 1e-10 \\ [1ex]
+ Aleatorio & ---\\
+ \hline
+ \end{tabular}
+ \caption{Mejores configuraciones}
+ \label{table:mejores_hiperparam}
+\end{table}
 
 \begin{table}[h!]
 \centering
