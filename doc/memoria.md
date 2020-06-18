@@ -375,7 +375,7 @@ Usamos AdaBoost con el objeto `AdaBoostClassifier`, fijando la tasa de aprendiza
  "clf__n_estimators": [100, 200, 300, 400, 500]}
 ```
 
-La base de AdaBoost es formar un buen clasificador entrenando muchos clasificadores *flojos* (*boosting*), por ejemplo arboles de decisión con una regla, repetídamente con muchas modificaciones de los datos (aplicando distintos pesos a los datos); de manera que la predicción de las etiquetas se hace con el voto mayoritario de todos los clasificadores. Además la función de error que intenta minimizar es la logística (no la de clasificación) por lo que se asemeja en ese sentido a `LogisticRegression`.
+La base de AdaBoost es formar un buen clasificador entrenando muchos clasificadores *flojos* (*boosting*), por ejemplo arboles de decisión con una regla, repetídamente con muchas modificaciones de los datos (aplicando distintos pesos a los datos); de manera que la predicción de las etiquetas se hace con el voto mayoritario de todos los clasificadores. Además la función de error que intenta minimizar es la función exponencial: $$L(y, f(x)) = \exp(-y f(x))$$
 
 \begin{figure}[h!]
   \centering
@@ -403,13 +403,15 @@ También probamos añadiendo `learning_rate` como hiperparámetro para probar co
 
 ### Gradient Boosting {.unlisted .unnumbered}
 
-Hiperparámetros Gradient Boosting:
+También usamos GradientTreeBoosting con el objeto `GradientBoostingClassifier` fijando la función de perdida a `'deviance'` (regresión logística), la tasa de aprendizaje a 0.1 y usando para entrenar todos los datos. Los hiperparámetros que variamos son la profundidad del los árboles `max_depth` y el nº de árboles `n_estimators`:
 
 ```python
 {"clf": [GradientBoostingClassifier(random_state = SEED)],
  "clf__max_depth": [1, 2, 3, 4, 5],
  "clf__n_estimators": [100, 200, 300, 400, 500]}
 ```
+
+GradientTreeBoosting surje como una generalización del método de boosting usando árboles como clasificadores, que permite utilizar distintas funciones de error para el entrenamiento. En cualquier caso la idea básica es la misma que AdaBoost, en concreto cambiamos la función de ajuste a la de regresión logística: $$L(y, f(x)) = \log(1 + \exp(y f(x)))$$
 
 \begin{figure}[h!]
   \centering
@@ -425,9 +427,7 @@ Hiperparámetros Gradient Boosting:
   \label{fig:pre_gradboosting2}
 \end{figure}
 
-Resultados preanálisis \ref{fig:pre_gradboosting1} y \ref{fig:pre_gradboosting2}
-
-Configuración final:
+En los resultados del preanálisis \ref{fig:pre_gradboosting1} y \ref{fig:pre_gradboosting2} vemos que no es ninguna sorpresa que para los árboles más profundos se obtienen mejores resultados con menos árboles, y para los más simples se necesitan muchos más. En cualquier caso probamos una configuración con pocos árboles (100) para profundidad alta y otra con muchos (300) para profundidad baja:
 
 ```python
 {"clf": [GradientBoostingClassifier(random_state = SEED,
@@ -441,6 +441,8 @@ Configuración final:
  "clf__subsample": [1.0, 0.75],
  "clf__max_depth": [1, 2]}
 ```
+
+Hemos añadido los hiperparámetros `learning_rate`, la tasa de aprendizaje y `subsample`, la proporción de datos usados en el entrenamiento de un clasificador, para intentar bajar la varianza y ampliar un poco más el espacio de búsqueda.
 
 ## Perceptrón multicapa (MLP)
 
