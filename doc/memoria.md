@@ -509,7 +509,7 @@ $$
 
 donde $\theta$ es la función de activación elegida. Para ajustar los pesos, se utiliza la técnica de *backpropagation* para propagar hacia atrás el error, que en este caso es el error cuadrático entre predicciones y etiquetas:
 $$
-L_(y_n, h(x_n)) = (y_n - h(x_n))^2
+L(y_n, h(x_n)) = (y_n - h(x_n))^2
 $$
 
 Utilizamos el objeto `MLPClassifier` con los siguientes parámetros fijos:
