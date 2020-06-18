@@ -656,8 +656,8 @@ Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clas
  Boosting &  GradientBoostingClassifier, max\_depth = 4, n\_estimators = 100, subsample = 0.75 \\
  MLP & hidden\_layer\_sizes = (88, 88), alpha = 3.0 \\
  KNN & n\_neighbors = 150, weights = 'distance' \\
- RBF-Network & k = 300, alpha = 1e-10 \\ [1ex]
- Aleatorio & ---\\
+ RBF-Network & k = 300, alpha = 1e-10 \\
+ Aleatorio & --- \\
  \hline
  \end{tabular}
  \caption{Mejores configuraciones}
@@ -677,7 +677,7 @@ Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clas
  MLP & 66.04 & 64.83 & 71.77 & 70.25 \\
  KNN & --- & 63.95 & --- & 68.80 \\
  RBF-Network & 65.93 & 64.83 & 71.40 & 70.14 \\
- Aleatorio & 50.43 & 50.58 & 50.08 & 49.78 \\ [1ex]
+ Aleatorio & 50.43 & 50.58 & 50.08 & 49.78 \\
  \hline
  \end{tabular}
  \caption{Resultados de cada modelo}
@@ -739,7 +739,11 @@ En general, exceptuando KNN y RandomForest que sabemos que tienden mucho al sobr
 
 Esto nos indica que los modelos consiguen un buen ajuste con poco overfitting, sacando casi todo el partido de los datos que tenemos. Observamos también que las curvas de validación se estabilizan, indicándonos que probablamente con muchos más datos no vamos a obtener ventajas notables por lo que si queremos aumentar mucho más la métrica deberemos considerar, por ejemplo, recolectar más características.
 
-- Ventajas/inconvenientes modelos
+- Ventajas y desventajas de modelos
+
+Lineales, boosting interpretabilidad, RF interpretabilidad por importancia, MLP, KNN no; RBF como lineal?
+
+Lineal, RBF poco tiempo de entrenamiento, despues Boosting, MLP y el que más con dif RF; knn no lo sé pero la pega es que encima tarda pq tiene que hacerlo con test.
 
 # Conclusiones y estimación del error
 
@@ -751,12 +755,119 @@ Notemos además que el mejor modelo lineal `LogisticRegression` ha conseguido un
 
 Analizando también la metrica secundaria, vemos que el orden de los valores de $AUC_{test}$ van muy ligados con $acc_{test}$ (esperable debido al casi balanceo de las clases), dándonos mayor fiabilidad en los resultados y también nos permiten dar más información sobre la bondad de los modelos, permitiendo otro punto de vista para compararlos.
 
+Finalmente veamos la buena calidad de `RandomForest` mediante su matriz de confusión en Figura \ref{fig:confusion} y la curva ROC en Figura \ref{fig:roc}, donde añadimos KNN para ejemplificar la comparación entre modelos.
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/confusion_RandomForestClassifier.png}
+  \caption{Matriz de confusión de RandomForest.}
+  \label{fig:confusion}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/auc.png}
+  \caption{Curva ROC con RandomForest y KNN.}
+  \label{fig:roc}
+\end{figure}
+
 - Repaso por encima de todos.
+
 
 [@fernandes2015]
 
+\newpage
 # Anexo: Funcionamiento del código {.unnumbered}
 
+
+```python
+class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
+    """Implementación de un clasificador de red de funciones (gaussianas)
+          de base radial.
+       Internamente utiliza un clasificador lineal RidgeClassifier para ajustar
+       los pesos del modelo final."""
+
+    def __init__(self, k = 7, alpha = 1.0, batch_size = 100,
+                 random_state = None):
+        """Construye un clasificador con los parámetros necesarios:
+             - k: número de centros a elegir.
+             - alpha: valor de la constante regularización.
+             - batch_size: tamaño del batch para el clustering no supervisado.
+             - random_state: semilla aleatoria."""
+
+        self.k = k
+        self.alpha = alpha
+        self.batch_size = batch_size
+        self.random_state = random_state
+        self.centers = None
+        self.r = None
+
+    def _choose_centers(self, X):
+        """Usando k-means escoge los k centros de los datos."""
+
+        init_size = 3 * self.k if 3 * self.batch_size <= self.k else None
+
+        kmeans = MiniBatchKMeans(
+            n_clusters = self.k,
+            batch_size = self.batch_size,
+            init_size = init_size,
+            random_state = self.random_state)
+        kmeans.fit(X)
+        self.centers = kmeans.cluster_centers_
+
+    def _choose_radius(self, X):
+        """Escoge el radio para la transformación radial."""
+
+        # "Diámetro" de los datos
+        R = np.max(euclidean_distances(X, X))
+
+        self.r = R / (self.k ** (1 / self.n_features_in_))
+
+    def _transform_rbf(self, X):
+        """Transforma los datos usando el kernel RBF."""
+
+        return rbf_kernel(X, self.centers, 1 / (2 * self.r ** 2))
+
+    def fit(self, X, y):
+        """Entrena el modelo."""
+
+        # Establecemos el modelo lineal subyacente
+        self.model = RidgeClassifier(
+            alpha = self.alpha,
+            random_state = self.random_state)
+
+        # Guardamos las clases y las características vistas
+        #durante el entrenamiento
+        self.classes_ = unique_labels(y)
+        self.n_features_in_ = X.shape[1]
+
+        # Obtenemos los k centros usando k-means
+        self._choose_centers(X)
+
+        # Elegimos el radio para el kernel RBF
+        self._choose_radius(X)
+
+        # Transformamos los datos usando kernel RBF respecto de los centros
+        Z = self._transform_rbf(X)
+
+        # Entrenamos el modelo lineal resultante
+        self.model.fit(Z, y)
+
+        # Guardamos los coeficientes obtenidos
+        self.intercept_ = self.model.intercept_
+        self.coef_ = self.model.coef_
+
+        return self
+
+    def score(self, X, y = None):
+        # Transformamos datos con kernel RBF
+        Z = self._transform_rbf(X)
+
+        # Score del modelo lineal
+        return self.model.score(Z, y)
+```
+
+\newpage
 # Bibliografía {.unnumbered}
 
 ---
