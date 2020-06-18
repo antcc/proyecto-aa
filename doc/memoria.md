@@ -323,11 +323,7 @@ También hemos considerado como hiperparámetro adicional el tipo de tasa de apr
 
 ## Random Forest (RF)
 
-En el caso de los árboles de decisión (Random Forest) queríamos bajar la alta varianza que tienen los árboles, consiguiendo también una mejoría del tiempo de entrenamiento.
-
-Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol.
-
-Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth` (regulariación) e inicialmente tenemos el siguiente espacio:
+Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol. Entonces consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth` (regularización), inicialmente teniendo el siguiente espacio:
 
 ```python
 {"clf": [RandomForestClassifier(random_state = SEED)],
@@ -335,7 +331,7 @@ Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profun
  "clf__n_estimators": [100, 200, 300, 400, 500, 600]}
 ```
 
-La clase de funciones que ajusta es el agrupamiento
+La clase de funciones que estamos ajustando no es más que la agrupación (*ensemble*) de árboles de decisión que son las funciones que particionan el espacio por hiperplanos paralelos a los ejes. En este sentido partimos desde un sesgo nulo y muy alta varianza que intentamos bajar con el *bagging* y el uso de distintos árboles, por lo que realmente no hay una función de error que estemos reduciendo.
 
 \begin{figure}[h!]
   \centering
@@ -370,7 +366,7 @@ Hemos añadido el hiperparámetro `cc_alpha` que se usa para la poda de mínimo 
 
 ### AdaBoost {.unlisted .unnumbered}
 
-Hiperparámetros AdaBoost:
+Usamos AdaBoost con el objeto `AdaBoostClassifier`, fijando la tasa de aprendizaje por defecto a `1` y usando como clasificador *flojo* un árbol de decisión `DecisionTreeClassifier`. Los hiperparámetros que dejamos para buscar son: `max_depth` la profundidad máxima de los clasificadores, y `n_estimators` el nº de los clasificadores. Probamos con profundidades muy bajas y un tamaño alto de clasificadores:
 
 ```python
 {"clf": [AdaBoostClassifier(random_state = SEED,
@@ -378,6 +374,8 @@ Hiperparámetros AdaBoost:
  "clf__base_estimator__max_depth": [1, 2, 3, 4, 5],
  "clf__n_estimators": [100, 200, 300, 400, 500]}
 ```
+
+La base de AdaBoost es formar un buen clasificador entrenando muchos clasificadores *flojos* (*boosting*), por ejemplo arboles de decisión con una regla, repetídamente con muchas modificaciones de los datos (aplicando distintos pesos a los datos); de manera que la predicción de las etiquetas se hace con el voto mayoritario de todos los clasificadores. Además la función de error que intenta minimizar es la logística (no la de clasificación) por lo que se asemeja en ese sentido a `LogisticRegression`.
 
 \begin{figure}[h!]
   \centering
@@ -393,16 +391,15 @@ Hiperparámetros AdaBoost:
   \label{fig:pre_adaboost2}
 \end{figure}
 
-
-Resultados preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2}
-
-Espacio final:
+Los resultados del preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2} nos dejan claro que los mejores resultados se benefician de árboles lo más simple posibles (una regla) y dentro de este, el mejor valor se alcanza con 200 árboles. Por tanto dejamos dejamos 1 como profunidad máxima y variamos el nº de árboles entorno a 200:
 
 ```python
 {"clf": [AdaBoostClassifier(random_state = SEED)],
  "clf__n_estimators": [175, 200, 225],
  "clf__learning_rate": [0.5, 1.0]}
 ```
+
+También probamos añadiendo `learning_rate` como hiperparámetro para probar con otra tasa más pequeña.
 
 ### Gradient Boosting {.unlisted .unnumbered}
 
@@ -528,7 +525,7 @@ El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo 
 \label{alg:rbf}
 \end{algorithm}
 
-Los hiperparámetros a considerar son tanto el nº de centroides `k` como el parámetro de regularización en el modelo lineal `alpha`, cuya configuración de búsqueda inicial es:
+Los hiperparámetros a considerar son tanto el nº de centroides `k` como el parámetro de regularización en el modelo lineal `alpha` (muy necesario cuando `k` aumenta), cuya configuración de búsqueda inicial es:
 
 ```python
 {"clf": [RBFNetworkClassifier(random_state = SEED)],
@@ -673,7 +670,6 @@ De hecho todos los modelos han obtenido resultados en $acc_{test}$ muy parecidos
 Notemos además que el mejor modelo lineal `LogisticRegression` ha conseguido un rendimiento muy bueno, más que otros modelos mucho más complejos como `KNN` o `MLP`. Esto último nos indica que a pesar de la "simplicidad" de un modelo lineal se puede obtener resultados iguales o mejores, que dependerá del problema que estemos tratando pero sin lugar a dudas no hay que descartar intentar ajustar un modelo lineal ya que puede darnos un buen resultado sin tener que usar otros algoritmos mucho más complejos.
 
 Analizando también la metrica secundaria, vemos que el orden de los valores de $AUC_{test}$ van muy ligados con $acc_{test}$ (esperable debido al casi balanceo de las clases), dándonos mayor fiabilidad en los resultados y también nos permiten dar más información sobre la bondad de los modelos, permitiendo otro punto de vista para compararlos.
-
 
 - Repaso por encima de todos.
 
