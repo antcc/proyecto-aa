@@ -652,6 +652,10 @@ Veamos las curvas de aprendizaje de cada modelo para ver si hay underfitting, ov
   \label{fig:curvas_rbf}
 \end{figure}
 
+En general, exceptuando KNN y RandomForest que sabemos que tienden mucho al sobreajuste siempre (KNN ya que tiene el propio punto en el training, y RandomForest por el bajisimo sesgo por construcción de árboles), los modelos empiezan con un gran sobreajuste que va disminuyendo conforme el nº de datos aumenta (las curvas se van acercando) y que acaban por casi juntarse con todos los datos.
+
+Esto nos indica que los modelos consiguen un buen ajuste con poco overfitting, sacando casi todo el partido de los datos que tenemos. Observamos también que las curvas de validación se estabilizan, indicándonos que probablamente con muchos más datos no vamos a obtener ventajas notables por lo que si queremos aumentar mucho más la métrica deberemos considerar, por ejemplo, recolectar más características.
+
 # Conclusiones y estimación del error
 
 - Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
