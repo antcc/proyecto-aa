@@ -568,7 +568,7 @@ Las mejores configuraciones de cada modelo estan en la tabla \ref{table:mejores_
  \hline
  Modelo & Hiperparámetros \\ [0.5ex]
  \hline\hline
- Modelo Lineal & LogisticRegression, C = 0.1 \\
+ Lineal & LogisticRegression, C = 0.1 \\
  RandomForest & max\_depth = 20, n\_estimators = 600, ccp\_alpha = 0 \\
  Boosting &  GradientBoostingClassifier, max\_depth = 4, n\_estimators = 100, subsample = 0.75 \\
  MLP & hidden\_layer\_sizes = (88, 88), alpha = 3.0 \\
@@ -588,7 +588,7 @@ Las mejores configuraciones de cada modelo estan en la tabla \ref{table:mejores_
  Modelo & $acc_{in}$ & $acc_{test}$ & $AUC_{in}$ & $AUC_{test}$ \\ [0.5ex]
  \hline\hline
 
- Modelo Lineal & 67.74 & 65.55 & 74.32 & 70.92 \\
+ Lineal & 67.74 & 65.55 & 74.32 & 70.92 \\
  RandomForest & \textbf{99.80} & \textbf{66.71} & \textbf{99.99} & 72.60 \\
  Boosting & 71.21 & 66.44 & 78.61 & \textbf{72.84} \\
  MLP & 66.04 & 64.83 & 71.77 & 70.25 \\
@@ -600,6 +600,57 @@ Las mejores configuraciones de cada modelo estan en la tabla \ref{table:mejores_
  \caption{Resultados de cada modelo}
  \label{table:res_modelos}
 \end{table}
+
+Veamos las curvas de aprendizaje de cada modelo para ver si hay underfitting, overfitting o hay un ajuste más o menos bueno:
+
+  - `LogisticRegression`: \ref{fig:curvas_lr}
+  - `RandomForest`: \ref{fig:curvas_rf}
+  - `GradientBoostingClassifier`: \ref{fig:curvas_boosting}
+  - `MLP`: \ref{fig:curvas_mlp}
+  - `KNN`: \ref{fig:curvas_knn}
+  - `RBF-Network`: \ref{fig:curvas_rbf}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/learning_curve_LogisticRegression.jpg}
+  \caption{Curvas de aprendizaje para LogisticRegression.}
+  \label{fig:curvas_lr}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/learning_curve_RandomForestClassifier.jpg}
+  \caption{Curvas de aprendizaje para RandomForest.}
+  \label{fig:curvas_rf}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/learning_curve_GradientBoostingClassifier.jpg}
+  \caption{Curvas de aprendizaje para GradientBoostingClassifier.}
+  \label{fig:curvas_boosting}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/learning_curve_MLPClassifier.jpg}
+  \caption{Curvas de aprendizaje para MLPClassifier.}
+  \label{fig:curvas_mlp}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/learning_curve_KNeighborsClassifier.jpg}
+  \caption{Curvas de aprendizaje para KNeighborsClassifier.}
+  \label{fig:curvas_knn}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=.7\textwidth]{img/learning_curve_RBFNetworkClassifier.jpg}
+  \caption{Curvas de aprendizaje para RBFNetworkClassifier.}
+  \label{fig:curvas_rbf}
+\end{figure}
 
 # Conclusiones y estimación del error
 
