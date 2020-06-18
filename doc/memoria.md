@@ -729,11 +729,13 @@ Por su parte, los resultados para las métricas escogidas en entrenamiento y tes
  \label{table:res_modelos}
 \end{table}
 
-Comenzamos por los modelos que han tenido un peor desempeño: KNN, RBF-Network y MLP. No nos sorprende que el modelo de KNN haya sido el peor, pues es un modelo que sigue una filosofía muy simple, que a veces resulta efectiva, pero parece que no se adecúa demasiado a nuestro problema. Los otros dos son modelos basados en redes, y parece que aunque hemos intentado conseguir el mejor ajuste dentro de cada clase, los resultados no son todo lo altos que se esperaría. Ambos siguen un esquema de caja negra, en la que se pierde interpretabilidad en pos de ganar precisión, pero parece que en este caso no compensa.
+Comenzamos por los modelos que han tenido un peor desempeño: KNN, RBF-Network y MLP. No nos sorprende que el modelo de KNN haya sido el peor, pues es un modelo que sigue una filosofía muy simple, que a veces resulta efectiva, pero parece que no se adecúa demasiado a nuestro problema. Los otros dos son modelos basados en redes, y parece que aunque hemos intentado conseguir el mejor ajuste dentro de cada clase, los resultados no son todo lo altos que se esperaría. Ambos siguen un esquema de caja negra, en la que se pierde interpretabilidad en pos de ganar precisión, pero parece que en este caso no compensa. Un detalle a tener en cuenta además es que en RBF calculamos el *diámetro* de los datos, para lo que necesitamos almacenar temporalmente en memoria la matriz de distancias, cuyo tamaño puede ser bastante grande debido a la gran cantidad de ejemplos que tenemos.
 
-Por su parte, el modelo lineal ha tenido un desempeño sorprendente, siendo de los más sencillos pero resultando competitivo con otros modelos mucho más complejos, como son los vencedores Gradient Boosting y Random Forest. Estos modelos sí que tienen una gran facilidad de interpretación (podríamos imprimir los árboles de decisión usados internamente), e incluso nos proporcionan si quisiésemos una medida de la importancia de las características usadas en la predicción.
+Por su parte, el modelo lineal ha tenido un desempeño sorprendente, siendo de los más sencillos pero resultando competitivo con otros modelos mucho más complejos, como son los vencedores Gradient Boosting y Random Forest. Estos modelos sí que tienen una mayor facilidad de interpretación (podríamos imprimir los árboles de decisión usados internamente), e incluso nos proporcionan si quisiésemos una medida de la importancia de las características usadas en la predicción. Sin embargo, debemos tener en cuenta que al agregar muchos árboles juntos podemos perder ese poder interpretativo o verlo reducido en gran medida, aunque podríamos sacar reglas a partir de los modelos ajustados para recuperar las interpretaciones.
 
 En cuanto al tiempo de entrenamiento, KNN, Regresión Logística y RBF-Network son los que menos tardan (en el primer caso es casi instantáneo, todo el tiempo se consume después en la predicción). Los otros tres modelos tienen un gran tiempo de entrenamiento, incluso habiendo restringido el número de capas ocultas en MLP, por lo que no es muy viable emplear un espacio de búsqueda demasiado extenso.
+
+Un último detalle a comentar es que en los modelos lineales **hemos repetido el procedimiento sin hacer selección de variables**, obteniendo unos resultados peores. Por tanto, podemos concluir que el uso de la técnica de PCA está justificado, no solo para reducir el tiempo de ajuste, sino también para mejorar la calidad del mismo.
 
 # Conclusiones y estimación del error
 
@@ -766,25 +768,25 @@ Finalmente veamos la buena calidad de `RandomForest` mediante su matriz de confu
 
 [@fernandes2015]
 
+
 \newpage
 # Anexo: Funcionamiento del código {.unnumbered}
 
+Vamos a comentar brevemente cómo está estructurado el código. En primer lugar, hay una función `main` que controla la ejecución del programa. Se sirve de unas constantes globales fijadas al inicio del archivo para ver el camino a seguir. En primer lugar se cargan los datos con la función `read_data`, y se realizan las divisiones oportunas en la función `split_data`. Después se muestran, si están activadas las imágenes, una serie de estadísticas y visualizaciones de los datos. Posteriormente se pasa al procedimiento de ajuste y selección de modelos, que puede hacerse de dos formas:
+
+1. Si queremos ejecutar todo el procedimiento de selección de modelos, activamos el valor `DO_MODEL_SELECTION = True`, lo que pasará el control a la función `fit_model_selection`, que se encarga de realizar este proceso. Si queremos ver más detalles aún podemos activar el parámetro `SHOW_ANALYSIS = True`, que realizará el proceso completo de preanálisis y nos mostrará las conclusiones.
+2. Si queremos omitir el procedimiento de selección de modelos y simplemente pasar al entrenamiento de los mejores modelos, basta dejar `DO_MODEL_SELECTION = False` (su valor por defecto). Los parámetros con los que se entrenan los modelos son los que se encontraron en el paso 1.
+
+Finalmente mediante la función `compare` se evalúan los modelos entrenados y se imprimen los resultados, terminando el programa y mostrando los tiempos de ejecución.
+
+Cabe destacar que mediante la función `preprocess_pipeline` obtenemos el cauce de preprocesado apropiado para cada modelo, controlado mediante los tipos enumerados `Model` y `Selection`. Otro detalle de implementación es la clase `multi_randint`, que permite escoger un entero aleatorio simbolizado como una tupla de tamaño arbitrario, útil por ejemplo para establecer el espacio de parámetros de los modelos MLP (en concreto, el número de neuronas por capa).
+
+Por último, recogemos aquí la implementación (omitiendo los comentarios) de la clase `RBFNetworkClassifier`, para ilustrar cómo podemos implementar un clasificador propio e integrarlo dentro de `sklearn`, de forma que se puede utilizar en *pipelines* y en el método de `GridSearchCV`, por ejemplo.
 
 ```python
 class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
-    """Implementación de un clasificador de red de funciones (gaussianas)
-          de base radial.
-       Internamente utiliza un clasificador lineal RidgeClassifier para ajustar
-       los pesos del modelo final."""
-
     def __init__(self, k = 7, alpha = 1.0, batch_size = 100,
                  random_state = None):
-        """Construye un clasificador con los parámetros necesarios:
-             - k: número de centros a elegir.
-             - alpha: valor de la constante regularización.
-             - batch_size: tamaño del batch para el clustering no supervisado.
-             - random_state: semilla aleatoria."""
-
         self.k = k
         self.alpha = alpha
         self.batch_size = batch_size
@@ -793,10 +795,8 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
         self.r = None
 
     def _choose_centers(self, X):
-        """Usando k-means escoge los k centros de los datos."""
-
-        init_size = 3 * self.k if 3 * self.batch_size <= self.k else None
-
+        init_size =
+            3 * self.k if 3 * self.batch_size <= self.k  else None
         kmeans = MiniBatchKMeans(
             n_clusters = self.k,
             batch_size = self.batch_size,
@@ -806,55 +806,42 @@ class RBFNetworkClassifier(BaseEstimator, ClassifierMixin):
         self.centers = kmeans.cluster_centers_
 
     def _choose_radius(self, X):
-        """Escoge el radio para la transformación radial."""
-
-        # "Diámetro" de los datos
         R = np.max(euclidean_distances(X, X))
-
         self.r = R / (self.k ** (1 / self.n_features_in_))
 
     def _transform_rbf(self, X):
-        """Transforma los datos usando el kernel RBF."""
-
         return rbf_kernel(X, self.centers, 1 / (2 * self.r ** 2))
 
     def fit(self, X, y):
-        """Entrena el modelo."""
-
-        # Establecemos el modelo lineal subyacente
         self.model = RidgeClassifier(
             alpha = self.alpha,
             random_state = self.random_state)
 
-        # Guardamos las clases y las características vistas
-        #durante el entrenamiento
         self.classes_ = unique_labels(y)
         self.n_features_in_ = X.shape[1]
 
-        # Obtenemos los k centros usando k-means
         self._choose_centers(X)
-
-        # Elegimos el radio para el kernel RBF
         self._choose_radius(X)
-
-        # Transformamos los datos usando kernel RBF respecto de los centros
         Z = self._transform_rbf(X)
 
-        # Entrenamos el modelo lineal resultante
         self.model.fit(Z, y)
 
-        # Guardamos los coeficientes obtenidos
         self.intercept_ = self.model.intercept_
         self.coef_ = self.model.coef_
 
         return self
 
     def score(self, X, y = None):
-        # Transformamos datos con kernel RBF
         Z = self._transform_rbf(X)
-
-        # Score del modelo lineal
         return self.model.score(Z, y)
+
+    def predict(self, X):
+        Z = self._transform_rbf(X)
+        return self.model.predict(Z)
+
+    def decision_function(self, X):
+        Z = self._transform_rbf(X)
+        return self.model.decision_function(Z)
 ```
 
 \newpage
