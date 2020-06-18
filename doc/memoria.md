@@ -1,6 +1,6 @@
 # Introducción
 
-En esta práctica perseguimos ajustar el mejor modelo dentro de una clase de modelos, para resolver un problema de clasificación binaria. Para ello seguiremos los siguientes pasos:
+En este proyecto perseguimos ajustar el mejor modelo dentro de una clase de modelos, para resolver un problema de clasificación binaria. Para ello seguiremos los siguientes pasos:
 
 1. Analizaremos la bases de datos y entenderemos el contexto del problema a resolver.
 2. Preprocesaremos los datos de forma adecuada para trabajar con ellos.
@@ -223,7 +223,7 @@ En la sección [Ajuste de modelos] veremos cómo se especifica en el código el 
 
 # Ajuste de modelos
 
-Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentro de cada una el procedimiento de ajuste y la justificación de los pasos seguidos. La métrica usada para decidir el mejor modelo será, de forma natural, el *accuracy* medio en los conjuntos de validación. Fijamos el valor de $K$ en 5 para la etapa de *cross-validation*, pues se trata de un valor no demasiado elevado que no dispara el tiempo de entrenamiento, pero lo suficiente como para conseguir unos resultados confiables.
+Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentro de cada una el procedimiento de ajuste y la justificación de los pasos seguidos. La métrica usada para decidir el mejor modelo será, de forma natural, el *accuracy* medio en los conjuntos de validación. Fijamos el valor de $K$ en 5 para la etapa de *cross-validation*, pues se trata de un valor no demasiado elevado que no dispara el tiempo de entrenamiento, pero lo suficiente como para conseguir unos resultados fiables.
 
 ## Modelos lineales
 
@@ -334,6 +334,8 @@ Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profun
  "clf__max_depth": [5, 10, 15, 20, 30, 40, 58],
  "clf__n_estimators": [100, 200, 300, 400, 500, 600]}
 ```
+
+La clase de funciones que ajusta es el agrupamiento
 
 \begin{figure}[h!]
   \centering
@@ -492,6 +494,8 @@ Algoritmo de los k vecinos más cercanos mediante el objeto `KNeighborsClassifie
  "clf__n_neighbors": [1, 3, 5, 10, 20, 25, 30, 40, 50, 100, 200]}
 ```
 
+K-nn considera los $k$ vecinos más cercanos al punto que se quiera etiquetar y se obtiene la etiqueta en función de las etiquetas de estos vecinos (moda, por ejemplo), por lo que las funciones que ajustamos son las que particionan el espacio de cualquier manera.
+
 \begin{figure}[h!]
   \centering
   \includegraphics[width=1.\textwidth]{img/KNN_acc_time.png}
@@ -507,11 +511,11 @@ Los resultados preanálisis \ref{fig:pre_knn} nos confirman la regla experimenta
  "clf__weights": ['uniform', 'distance']}
 ```
 
-Además añadimos para dar más variabilidad en la búsqueda, el hiperparámetro `weights` que permite cambiar el peso de los vecinos: `uniform` todos importan igual, `distance` los vecinos importan en función de la distancia.
+Además añadimos para dar más variabilidad en la búsqueda, el hiperparámetro `weights` que permite cambiar el peso de los $k$-vecinos encontrados: `uniform` todos importan por igual, `distance` los vecinos importan inversamente proporcional a la distancia.
 
 ## Redes de funciones de Base Radial (RBF)
 
-El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO. Hemos considerado el algoritmo K-medias (`KMeans`) para encontrar los $k$ centroides, la sugerencia de fijar $r = \dfrac{R}{k^{1/d}}$ y finalmente el algoritmo lineal considerado con el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`) ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal.
+El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO. Hemos considerado el algoritmo K-medias (`KMeans`) para encontrar los $k$ centroides, la sugerencia de fijar $r = \dfrac{R}{k^{1/d}}$ y finalmente el algoritmo lineal considerado con el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`) ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal clasificador.
 
 \begin{algorithm}[H]
 \SetAlgoLined
@@ -532,17 +536,19 @@ Los hiperparámetros a considerar son tanto el nº de centroides `k` como el par
  "clf__alpha": [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]}
 ```
 
+Una implementacion más específica se puede encontrar en [Anexo: Funcionamiento del código].
+
 \begin{figure}[h!]
   \centering
   \includegraphics[width=1.\textwidth]{img/RBF_acc_time.png}
-  \caption{acc-cv/tiempo según `k` y `alpha` en RBF.}
+  \caption{acc-cv/tiempo según k y alpha en RBF.}
   \label{fig:pre_rbf1}
 \end{figure}
 
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.7\textwidth]{img/RBF_heatmap.png}
-  \caption{Mapa de calor según `k` y `alpha` en RBF.}
+  \caption{Mapa de calor según k y alpha en RBF.}
   \label{fig:pre_rbf2}
 \end{figure}
 
@@ -656,9 +662,17 @@ En general, exceptuando KNN y RandomForest que sabemos que tienden mucho al sobr
 
 Esto nos indica que los modelos consiguen un buen ajuste con poco overfitting, sacando casi todo el partido de los datos que tenemos. Observamos también que las curvas de validación se estabilizan, indicándonos que probablamente con muchos más datos no vamos a obtener ventajas notables por lo que si queremos aumentar mucho más la métrica deberemos considerar, por ejemplo, recolectar más características.
 
+- Ventajas/inconvenientes modelos
+
 # Conclusiones y estimación del error
 
-- Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
+El mejor modelo que nos indica la métrica *accuracy* (y con el que nos quedamos como modelo final) es `RandomForest` con una tasa de acierto del 66.71%. Sin embargo, merece la pena comentar que `GradientBoostingClassifier` se acerca mucho con un acierto del 66.44% e incluso bajo la métrica *AUC* es mejor (72.84% frente al 72.60% de RF).
+
+De hecho todos los modelos han obtenido resultados en $acc_{test}$ muy parecidos, con diferencias de no más de 3 unidades. Además el mejor modelo lineal `LogisticRegression` ha conseguido un rendimiento muy bueno, más que otros modelos mucho más complejos como `KNN` o `MLP`. Esto último nos indica que a pesar de la "simplicidad" de un modelo lineal se puede obtener resultados iguales o mejores, que dependerá del problema que estemos tratando pero sin lugar a dudas no hay que descartar intentar ajustar un modelo lineal ya que puede darnos un buen resultado sin tener que usar otros algoritmos mucho más complejos.
+
+El orden de los valores de $AUC_{test}$ van muy ligados con $acc_{test}$ (esperable debido al casi balanceo de las clases), dándonos mayor fiabilidad en los resultados. También nos permiten dar más información sobre la bondad de los modelos, permitiendo otro punto de vista para compararlos.
+
+
 - Repaso por encima de todos.
 
 [@fernandes2015]
