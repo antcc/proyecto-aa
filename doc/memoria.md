@@ -641,9 +641,7 @@ Los resultados del preanálisis en la Figura \ref{fig:pre_rbf1} y la Figura \ref
 
 # Análisis de resultados
 
-Las mejores configuraciones de cada modelo estan en la tabla \ref{table:mejores_hiperparam}, cuyos resultados de las métricas acc y AUC en training/test se recojen en la tabla \ref{table:res_modelos}.
-
-Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clasificador base para comparar el resto de modelos. Se espera que este clasificador tenga un acierto de 50% (2 clases) por lo que cualquier modelo debería obtener un acierto por encima de este para considerarlo bueno.
+En esta sección mostramos los resultados de la técnica de selección que hemos realizado. En la Tabla \ref{table:mejores_hiperparam} se pueden observar las mejores configuraciones para cada modelo, las que han obtenido menor error de *cross-validation* dentro de su clase.
 
 \begin{table}[h!]
 \centering
@@ -653,45 +651,17 @@ Incorporamos el clasificador aleatorio con el objeto `DummyClassifier` como clas
  \hline\hline
  Lineal & LogisticRegression, C = 0.1 \\
  RandomForest & max\_depth = 20, n\_estimators = 600, ccp\_alpha = 0 \\
- Boosting &  GradientBoostingClassifier, max\_depth = 4, n\_estimators = 100, subsample = 0.75 \\
+ Boosting &  GradientBoosting, max\_depth = 4, n\_estimators = 100, subsample = 0.75 \\
  MLP & hidden\_layer\_sizes = (88, 88), alpha = 3.0 \\
  KNN & n\_neighbors = 150, weights = 'distance' \\
  RBF-Network & k = 300, alpha = 1e-10 \\
- Aleatorio & --- \\
  \hline
  \end{tabular}
- \caption{Mejores configuraciones}
+ \caption{Mejores configuraciones obtenidas en CV.}
  \label{table:mejores_hiperparam}
 \end{table}
 
-\begin{table}[h!]
-\centering
- \begin{tabular}{||c||c c c c||}
- \hline
- Modelo & $acc_{in}$ & $acc_{test}$ & $AUC_{in}$ & $AUC_{test}$ \\ [0.5ex]
- \hline\hline
-
- Lineal & 67.74 & 65.55 & 74.32 & 70.92 \\
- RandomForest & \textbf{99.80} & \textbf{66.71} & \textbf{99.99} & 72.60 \\
- Boosting & 71.21 & 66.44 & 78.61 & \textbf{72.84} \\
- MLP & 66.04 & 64.83 & 71.77 & 70.25 \\
- KNN & --- & 63.95 & --- & 68.80 \\
- RBF-Network & 65.93 & 64.83 & 71.40 & 70.14 \\
- Aleatorio & 50.43 & 50.58 & 50.08 & 49.78 \\
- \hline
- \end{tabular}
- \caption{Resultados de cada modelo}
- \label{table:res_modelos}
-\end{table}
-
-Veamos las curvas de aprendizaje de cada modelo para ver si hay underfitting, overfitting o hay un ajuste más o menos bueno:
-
-  - `LogisticRegression`: \ref{fig:curvas_lr}
-  - `RandomForest`: \ref{fig:curvas_rf}
-  - `GradientBoostingClassifier`: \ref{fig:curvas_boosting}
-  - `MLP`: \ref{fig:curvas_mlp}
-  - `KNN`: \ref{fig:curvas_knn}
-  - `RBF-Network`: \ref{fig:curvas_rbf}
+Podemos estudiar las curvas de aprendizaje de cada modelo para ver si hay *underfitting*, *overfitting* o si más o menos se ha realizado un buen ajuste. Mostramos estas curvas junto con una medida del tiempo de entrenamiento en las Figuras \ref{fig:curvas_lr} a \ref{fig:curvas_rbf}.
 
 \begin{figure}[h!]
   \centering
@@ -735,15 +705,35 @@ Veamos las curvas de aprendizaje de cada modelo para ver si hay underfitting, ov
   \label{fig:curvas_rbf}
 \end{figure}
 
-En general, exceptuando KNN y RandomForest que sabemos que tienden mucho al sobreajuste siempre (KNN ya que tiene el propio punto en el training, y RandomForest por el bajisimo sesgo por construcción de árboles), los modelos empiezan con un gran sobreajuste que va disminuyendo conforme el nº de datos aumenta (las curvas se van acercando) y que acaban por casi juntarse con todos los datos.
+Sabemos que los modelos de RandomForest presentan casi siempre un alto sobreajuste, a pesar de la intensa regularización aplicada. También observamos un fenómeno parecido en las curvas de KNN, pero esta vez la explicación es distinta: en la fase de entrenamiento habíamos memorizado los datos, por lo que siempre vamos a clasificar correctamente el 100% de los puntos. En el resto de modelos observamos cómo las curvas de *accuracy* en entrenamiento y validación comienzan separadas pero se van acercando a medida que aumenta el número de ejemplos, hasta acabar prácticamente por juntarse. Esto nos indica que los modelos han aprendido bien de los datos, y salvo excepciones como el MLP, no se beneficiarían demasiado de más datos de entrenamiento.
 
-Esto nos indica que los modelos consiguen un buen ajuste con poco overfitting, sacando casi todo el partido de los datos que tenemos. Observamos también que las curvas de validación se estabilizan, indicándonos que probablamente con muchos más datos no vamos a obtener ventajas notables por lo que si queremos aumentar mucho más la métrica deberemos considerar, por ejemplo, recolectar más características.
+Por su parte, los resultados para las métricas escogidas en entrenamiento y test se recogen en la Tabla \ref{table:res_modelos}. Incorporamos un clasificador aleatorio con el objeto `DummyClassifier` como clasificador base para comparar el resto de modelos. Se espera que este clasificador tenga un acierto de 50% (2 clases) por lo que cualquier modelo que se precie debería obtener un acierto por encima de este.
 
-- Ventajas y desventajas de modelos
+\begin{table}[h!]
+\centering
+ \begin{tabular}{||c||c c c c||}
+ \hline
+ Modelo & $acc_{in}$ & $acc_{test}$ & $AUC_{in}$ & $AUC_{test}$ \\ [0.5ex]
+ \hline\hline
 
-Lineales, boosting interpretabilidad, RF interpretabilidad por importancia, MLP, KNN no; RBF como lineal?
+ Regresión Logística & 67.74 & 65.55 & 74.32 & 70.92 \\
+ Random Forest & \textbf{99.80} & \textbf{66.71} & \textbf{99.99} & 72.60 \\
+ Gradient Boosting & 71.21 & 66.44 & 78.61 & \textbf{72.84} \\
+ MLP & 66.04 & 64.83 & 71.77 & 70.25 \\
+ KNN & --- & 63.95 & --- & 68.80 \\
+ RBF-Network & 65.93 & 64.83 & 71.40 & 70.14 \\
+ Aleatorio & 50.43 & 50.58 & 50.08 & 49.78 \\
+ \hline
+ \end{tabular}
+ \caption{Resultados de los mejores modelos. Se destacan en negrita los mejores valores de cada columna.}
+ \label{table:res_modelos}
+\end{table}
 
-Lineal, RBF poco tiempo de entrenamiento, despues Boosting, MLP y el que más con dif RF; knn no lo sé pero la pega es que encima tarda pq tiene que hacerlo con test.
+Comenzamos por los modelos que han tenido un peor desempeño: KNN, RBF-Network y MLP. No nos sorprende que el modelo de KNN haya sido el peor, pues es un modelo que sigue una filosofía muy simple, que a veces resulta efectiva, pero parece que no se adecúa demasiado a nuestro problema. Los otros dos son modelos basados en redes, y parece que aunque hemos intentado conseguir el mejor ajuste dentro de cada clase, los resultados no son todo lo altos que se esperaría. Ambos siguen un esquema de caja negra, en la que se pierde interpretabilidad en pos de ganar precisión, pero parece que en este caso no compensa.
+
+Por su parte, el modelo lineal ha tenido un desempeño sorprendente, siendo de los más sencillos pero resultando competitivo con otros modelos mucho más complejos, como son los vencedores Gradient Boosting y Random Forest. Estos modelos sí que tienen una gran facilidad de interpretación (podríamos imprimir los árboles de decisión usados internamente), e incluso nos proporcionan si quisiésemos una medida de la importancia de las características usadas en la predicción.
+
+En cuanto al tiempo de entrenamiento, KNN, Regresión Logística y RBF-Network son los que menos tardan (en el primer caso es casi instantáneo, todo el tiempo se consume después en la predicción). Los otros tres modelos tienen un gran tiempo de entrenamiento, incluso habiendo restringido el número de capas ocultas en MLP, por lo que no es muy viable emplear un espacio de búsqueda demasiado extenso.
 
 # Conclusiones y estimación del error
 
