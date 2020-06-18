@@ -735,39 +735,44 @@ Por su parte, el modelo lineal ha tenido un desempeño sorprendente, siendo de l
 
 En cuanto al tiempo de entrenamiento, KNN, Regresión Logística y RBF-Network son los que menos tardan (en el primer caso es casi instantáneo, todo el tiempo se consume después en la predicción). Los otros tres modelos tienen un gran tiempo de entrenamiento, incluso habiendo restringido el número de capas ocultas en MLP, por lo que no es muy viable emplear un espacio de búsqueda demasiado extenso.
 
-Un último detalle a comentar es que en los modelos lineales **hemos repetido el procedimiento sin hacer selección de variables**, obteniendo unos resultados peores. Por tanto, podemos concluir que el uso de la técnica de PCA está justificado, no solo para reducir el tiempo de ajuste, sino también para mejorar la calidad del mismo.
+Un último detalle a comentar es que en los modelos lineales **hemos repetido el procedimiento sin hacer selección de variables**, obteniendo unos resultados peores (65.26% de *accuracy* en *test*) y además elevando el número de variables a 1769. Por tanto, podemos concluir que el uso de la técnica de PCA está justificado, no solo para reducir el tiempo de ajuste, sino también para mejorar la calidad del mismo.
 
 # Conclusiones y estimación del error
 
-El mejor modelo que nos indica la métrica *accuracy* (y con el que nos quedamos como modelo final) es `RandomForest` con una tasa de acierto del 66.71%. Sin embargo, merece la pena comentar que `GradientBoostingClassifier` se acerca mucho con un acierto del 66.44% e incluso bajo la métrica *AUC* es mejor (72.84% frente al 72.60% de RF).
+El mejor modelo que nos indica la métrica *accuracy* (y con el que nos quedamos como modelo final) es `RandomForest`, con una tasa de acierto del 66.71% en *test*, a parte de un *accuracy* de casi el 100% en entrenamiento. Sin embargo, merece la pena comentar que `GradientBoostingClassifier` se acerca mucho con un acierto del 66.44% e incluso bajo la métrica *AUC* es mejor (72.84% frente al 72.60% de RF).
 
 De hecho todos los modelos han obtenido resultados en $acc_{test}$ muy parecidos, con diferencias de no más de 3 unidades y con valores por encima del 50% base (aleatorio) por al menos más de 10 puntos, por lo que en general los modelos han obtenido unas soluciones con un rendimiento muy parecido y que podemos decir que son "buenas", en el sentido que son mejores significativamente que usar el azar.
 
-Notemos además que el mejor modelo lineal `LogisticRegression` ha conseguido un rendimiento muy bueno, más que otros modelos mucho más complejos como `KNN` o `MLP`. Esto último nos indica que a pesar de la "simplicidad" de un modelo lineal se puede obtener resultados iguales o mejores, que dependerá del problema que estemos tratando pero sin lugar a dudas no hay que descartar intentar ajustar un modelo lineal ya que puede darnos un buen resultado sin tener que usar otros algoritmos mucho más complejos.
+Analizando también la métrica secundaria, vemos que el orden de los valores de $AUC_{test}$ van muy ligados con $acc_{test}$ (no muy sorprendente debido al casi balanceo de las clases), dándonos mayor fiabilidad en los resultados y también nos permiten dar más información sobre la bondad de los modelos, ofreciendo otro punto de vista para compararlos en cuanto a su poder de discriminación.
 
-Analizando también la metrica secundaria, vemos que el orden de los valores de $AUC_{test}$ van muy ligados con $acc_{test}$ (esperable debido al casi balanceo de las clases), dándonos mayor fiabilidad en los resultados y también nos permiten dar más información sobre la bondad de los modelos, permitiendo otro punto de vista para compararlos.
+Notemos además que el mejor modelo lineal `LogisticRegression` ha conseguido un rendimiento muy bueno, más que otros modelos mucho más complejos como `RBF` o `MLP`. Esto último nos indica que a pesar de la "simplicidad" de un modelo lineal se puede obtener resultados muy buenos, dependiendo del problema que estemos tratando. Esto refuerza la idea de que en primer lugar lo mejor es probar siempre con un modelo lineal, ya que puede darnos un resultado suficientemente bueno sin tener que usar otros algoritmos mucho más complejos.
 
-Finalmente veamos la buena calidad de `RandomForest` mediante su matriz de confusión en Figura \ref{fig:confusion} y la curva ROC en Figura \ref{fig:roc}, donde añadimos KNN para ejemplificar la comparación entre modelos.
+Podemos estudiar la buena calidad del ajuste `RandomForest` obtenido mediante su matriz de confusión en Figura \ref{fig:confusion}. En ella observamos cómo la tasa de falsos positivos es del 19%, mientras que la de falsos negativos es algo menor, del 14%. Si bien no son valores excesivamente bajos, dentro de lo que cabe acertamos las etiquetas en una proporción razonable de ejemplos.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=.7\textwidth]{img/confusion_RandomForestClassifier.png}
+  \includegraphics[width=.8\textwidth]{img/confusion_RandomForestClassifier.png}
   \caption{Matriz de confusión de RandomForest.}
   \label{fig:confusion}
 \end{figure}
 
+También mostramos la curva ROC de Random Forest en Figura \ref{fig:roc}, donde añadimos KNN para ejemplificar la comparación con el peor modelo, observando que lo supera para todos los posibles umbrales.
+
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=.7\textwidth]{img/auc.png}
+  \includegraphics[width=.8\textwidth]{img/auc.png}
   \caption{Curva ROC con RandomForest y KNN.}
   \label{fig:roc}
 \end{figure}
 
-- Repaso por encima de todos.
+Por completitud podemos intentar establecer una cota para el error de generalización de nuestro modelo final. Como hemos usado el conjunto de *test* para discriminar y elegir el mejor modelo, podemos aplicar la *cota de Hoeffding* tomando como tamaño de la clase 6, el número de modelos finales comparados. Sabemos que la cota en general se expresa como
+$$E_{out} \leq E_{test} + \sqrt{\frac{1}{2N_{test}}\log \frac{2|\mathcal H|}{\delta}}, \quad \text{con probabilidad } \geq 1-\delta.$$
 
+Aplicándolo con nuestros datos y un valor de $\delta = 0.05$, obtenemos que
+$$E_{out} \leq 0.3329 + \sqrt{\frac{1}{2 \cdot 11893}\log\left(\frac{2 \cdot 6}{0.05}\right)} \leq 0.3481,$$
+es decir, con una confianza del 95% el error de generalización de nuestro modelo será más pequeño que 34.81%, o lo que es lo mismo, el *accuracy* de generalización será superior al 65.2%.
 
-[@fernandes2015]
-
+Si comparamos con los resultados obtenidos por los autores del *dataset* en [@fernandes2015] con diversas técnicas, vemos que conseguimos alcanzar el mejor resultado base conocido: con una precisión de dos cifras decimales, nuestro modelo ganador alcanza un *accuracy* de 0.67 y un valor de AUC de 0.73, el mismo que reportan en el artículo. Podemos concluir entonces que, en base a la técnica de selección seguida y a la luz de los resultados obtenidos, hemos conseguido el mejor modelo dentro de las clases fijadas, con un error de ajuste prácticamente nulo y una buena capacidad de generalización a pesar del sobreajuste; en general, estamos satisfechos con el modelo final en términos de rendimiento.
 
 \newpage
 # Anexo: Funcionamiento del código {.unnumbered}
