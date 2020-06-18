@@ -227,14 +227,41 @@ Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentr
 
 ## Modelos lineales
 
-Hemos considerado L2 para los modelos lineales ya que queremos generalizarlos para bajar la varianza en pos de extraer un mayor valor de la métrica, a costa de no rebajar el tiempo de computación (reduciendo variables con L1), pero no nos importa puesto que el tiempo de entrenamiento es razonable y preferimos aumentar el acierto.
+En primer lugar consideramos modelos lineales, que son simples pero muchas veces efectivos y suficientemente buenos para muchos problemas. Vamos a intentar aumentar un poco la complejidad de los modelos para intentar conseguir un mejor ajuste. Para esto, consideramos transformaciones polinómicas de las variables de entrada, concretamente polinomios de grado 2 (no pensamos que un grado mayor merezca la pena en términos de eficiencia, ya que tendríamos demasiadas variables). De esta forma el modelo final seguirá siendo lineal en los pesos, pero permite realizar una clasificación más potente en el espacio transformado y sacar a la luz relaciones entre las variables que resulten en una mejor predicción. Concretamente, si $\mathcal X$ es el espacio de entrada y $x = (x_1,\dots, x_d) \in \mathcal X$, consideramos la función
+$$
+\Phi_2(x) = (1, x_1, \dots, x_{d}, x_1^2, \dots, x_{d}^2, x_1x_2, x_1x_3, \dots, x_1x_{d}, x_2x_3, \dots, x_{d-1}x_{d}),
+$$
 
-TODO poner matriz de correlación. hablar de pca + poly. COMENTAR QUE SE HA HECHO SIN RPEPROCESADO Y SALE PEOR; DECIR POR QUE HACEMO AUMENTO. COMENTAR CLASE DE FUNCIONES.
-TODO nº iteraciones
+de forma que la clase de funciones que ajustan nuestros modelos es
+$$
+\mathcal {H_{lin}} = \{ \operatorname{signo}(w^T \Phi_2(x)): w \in \mathbb{R}^{\tilde{d}} \},
+$$
+
+con
+$$\tilde{d} = 1 + 2d + \frac{d(d-1)}{2}.$$
+
+Como estamos aumentando significativamente la dimensionalidad del espacio de entrada, pensamos que merece la pena realizar previamente una selección de características para resumir la información disponible y evitar que se dispare el número de características. La estrategia utilizada es *Principal Component Analysis* o PCA, que transforma las variables considerando ciertas combinaciones lineales de las mismas, llamadas componentes principales, de forma que la primera recoge la mayor varianza según una cierta proyección de los datos, la segunda la segunda mayor, etc. Podemos especificar el porcentaje de varianza acumulada que deben explicar las nuevas variables, que en nuestro caso fijamos al 95%. Con estos parámetros obtenemos una reducción del espacio original de 58 variables a 36, de forma que con ellas se consigue explicar el 95% de la varianza original, lo que consideramos aceptable y suficiente para nuestro problema. De esta forma, el espacio original se sustituye por otro $\mathcal X'$ de dimensión $d' < d$ (en nuestro caso $d'=36$), y es en este espacio donde aplicamos las transformaciones polinómicas comentadas anteriormente, obteniendo finalmente 702 variables efectivas para la predicción.
+
+A continuación mostramos en la Figura \ref{fig:corr} una ilustración de las matrices de correlaciones absolutas en entrenamiento, antes y después del preprocesado realizado. Se observa que aunque aumentamos el número de variables no se disparan las correlaciones, más allá de las evidentes por la forma de las transformaciones realizadas. Cabe destacar que, como comentamos antes, estas transformaciones se incorporan al *pipeline* para realizarlas también en la fase de predicción.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{img/correlation_pca_poly}
+\caption{Matriz de correlación en entrenamiento antes y después del preprocesado.}
+\label{fig:corr}
+\end{figure}
+
+Por otro lado, hemos considerado regularización L2 para los modelos lineales. Este tipo de regularización no conduce a modelos dispersos (al contrario que L1), y pensamos que esto es adecuado porque ya hemos realizado una reducción de dimensionalidad previa a la transformación polinómica, y creemos que la mayoría de las variables son relevantes para la predicción. Además, esta estrategia suele funcionar bien en muchos problemas, disminuyendo la varianza de los modelos y consiguiendo una mejor capacidad de generalización y un mayor valor de la métrica. Por último, otro punto a favor es que no introduce pérdida de derivabilidad, haciendo que su tratamiento computacional sea más flexible y eficiente.
+
+Finalmente fijamos a 1000 el número de iteraciones para todos los modelos que utilicen métodos iterativos en el ajuste.
 
 ### Regresión Logística {.unlisted .unnumbered}
 
-En primer lugar consideramos un modelo de regresión logística, implementado en el objeto `LogisticRegression`, usando regularización L2. El parámetro de regularización, cuyo inverso es lo que en el código se alude como `C`, viene dado por el preanálisis, considerando 40 puntos en el espacio logarítmico $[-5, 1]$ para el preanálisis.
+En primer lugar consideramos un modelo de regresión logística, implementado en el objeto `LogisticRegression`. Este modelo predice probabilidades y al final utiliza un umbral para decidir la clase de cada ejemplo. Se trata de un modelo que suele proporcionar muy buenos resultados, adecuado para problemas con variables numéricas con clases balanceadas como el nuestro.
+
+En este caso, la técnica de optimización es la que viene por defecto, que se conoce como [LBFGS](https://en.wikipedia.org/wiki/Limited-memory_BFGS). Se trata de un algoritmo iterativo similar al método de Newton para optimización, pero que utiliza una aproximación de la inversa de la matriz Hessiana. Se ha elegido porque tiene un tiempo de ejecución asumible y los resultados suelen ser buenos. La función a optimizar es la pérdida logarítmica: $$ L_{log}(w) = \frac{1}{N}\sum_{n=1}^N \log(1 + e^{-y_nw^Tx_n}), $$ a la que se añade el término de penalización L2. Debemos tener en cuenta que aunque el algoritmo optimice esta función para proporcionar un resultado, la métrica de error que nosotros estamos usando es el accuracy y no el error logarítmico.
+
+El parámetro de regularización, cuyo inverso es lo que en el código se alude como `C`, viene dado por el preanálisis, considerando 40 puntos en el espacio logarítmico $[-5, 1]$ para el mismo:
 
 ```python
 {"clf": [LogisticRegression(penalty = 'l2',
@@ -242,28 +269,27 @@ En primer lugar consideramos un modelo de regresión logística, implementado en
                             max_iter = max_iter)],
  "clf__C": np.logspace(-5, 1, 40)}
 ```
-
-En este caso, la técnica de optimización es la que viene por defecto, que se conoce como [LBFGS](https://en.wikipedia.org/wiki/Limited-memory_BFGS). Se trata de un algoritmo iterativo similar al método de Newton para optimización, pero que utiliza una aproximación de la inversa de la matriz Hessiana. Se ha elegido porque tiene un tiempo de ejecución asumible y los resultados suelen ser buenos. La función a optimizar es la pérdida logarítmica: $$ L_{log}(w) = \frac{1}{N}\sum_{n=1}^N \log(1 + e^{-y_nw^Tx_n}), $$ a la que se añade el término de penalización L2. Debemos tener en cuenta que aunque el algoritmo optimice esta función para proporcionar un resultado, la métrica de error que nosotros estamos usando es el accuracy y no el error logarítmico.
+Los resultados obtenidos en el preanálisis se pueden observar en la Figura \ref{fig:pre_lr}, y nos indica que desde el orden de $10^{-4}$ en adelante, los resultados son más o menos igual de buenos, alcanzando un máximo entre $10^{-4}$ y $10^{-3}$.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/LogisticRegression_acc_time.png}
+  \includegraphics[width=.8\textwidth]{img/LogisticRegression_acc_time.png}
   \caption{acc-cv/tiempo según C en LogisticRegression.}
   \label{fig:pre_lr}
 \end{figure}
 
-El resultado del preanálisis de \ref{fig:pre_lr} nos indica que desde el orden de $10^{-4}$ en adelante, los resultados son igual de buenos, alcanzando un máximo entre $10^{-4}$ y $10^{-3}$. Por tanto restringimos `C` al espacio logarítmico $[-4, 0]$, quedando:
+Por tanto restringimos `C` al espacio logarítmico $[-4, 0]$, reduciendo el número de puntos en el que lo dividimos para no aumentar en exceso el tiempo, quedando finalmente el espacio de búsqueda configurado como sigue:
 
 ```python
 {"clf": [LogisticRegression(penalty = 'l2',
                             random_state = SEED,
-                            max_iter = max_iter)],
+                            max_iter = 1000)],
  "clf__C": np.logspace(-4, 0, 9)}
 ```
 
 ### Regresión lineal {.unlisted .unnumbered}
 
-Consideramos también un modelo de regresión lineal. Utilizamos un objeto `RidgeClassifier`, que fija implícitamente la regularización L2. En este caso, la constante de regularización se llama `alpha`, considerando el espacio de búsqueda como 40 puntos en el espacio logarítmico $[-5, 5]$.
+Consideramos también un modelo de regresión lineal, el más simple dentro de su clase pero muchas veces efectivo. Utilizamos un objeto `RidgeClassifier`, que fija implícitamente la regularización L2. En este caso, la constante de regularización se llama `alpha`, considerando el espacio de búsqueda inicial como 40 puntos en el espacio logarítmico $[-5, 5]$.
 
 ```python
 {"clf": [RidgeClassifier(random_state = SEED,
@@ -273,14 +299,14 @@ Consideramos también un modelo de regresión lineal. Utilizamos un objeto `Ridg
 
 En este caso se pretende minimizar el error cuadrático de regresión (añadiendo regularización L2): $$ L_{lin}(w) = \frac{1}{N} \sum_{n=1}^N (y_n - w^Tx_n)^2. $$ Para ello se utiliza la técnica de la Pseudoinversa basada en la descomposición SVD de la matriz de datos, obteniendo una solución en forma cerrada y sin seguir un procedimiento iterativo. Se ha elegido esta técnica en lugar de SGD porque el tiempo de ejecución es más reducido y las soluciones obtenidas son suficientemente buenas.
 
+El resultado del preanálisis mostrado en la Figura \ref{fig:pre_rc} nos arroja un máximo cerca de $10^{4}$, por lo que parece razonable restringir el espacio de búsqueda al espacio logarítmico $[0, 5]$.
+
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/RidgeClassifier_acc_time.png}
+  \includegraphics[width=.8\textwidth]{img/RidgeClassifier_acc_time.png}
   \caption{acc-cv/tiempo según alpha en RidgeClassifier.}
   \label{fig:pre_rc}
 \end{figure}
-
-El resultado del preanálisis de \ref{fig:pre_rc} nos arroja un máximo cerca de $10^{4}$, por lo que restringimos el espacio de búsqueda al espacio logarítmico $[0, 5]$:
 
 ```python
 {"clf": [RidgeClassifier(random_state = SEED,
@@ -290,7 +316,11 @@ El resultado del preanálisis de \ref{fig:pre_rc} nos arroja un máximo cerca de
 
 ### SVM Lineal {.unlisted .unnumbered}
 
-Finalmente en modelos lineales, consideramos las máquinas de soporte vectorial (SVM) lineales (sin usar kernel) utilizando el objeto `SGDClassifier` con regularización L2, y tomando `alpha` con 40 puntos en el espacio logarítmico $[-6, 2]$.
+Finalmente en modelos lineales, consideramos las máquinas de soporte vectorial (SVM) lineales (sin usar *kernel*), utilizando el objeto `SGDClassifier` con la pérdida *hinge* y regularización L2:
+
+$$L_{hinge}(w) = \frac{1}{N} \sum_{n=1}^N \max(0, 1 - y_nw^Tx_n).$$
+
+Considerando este modelo perseguimos aumentar el rendimiento, pues se intenta maximizar el margen del hiperplano hipótesis para que sea más robusto en la clasificación, y al usar la técnica SGD en el ajuste no incurrimos en tiempos demasiado grandes para entrenar. Estudiamos el parámetro de regularización `alpha` con 40 puntos en el espacio logarítmico $[-6, 2]$, obteniendo los resultados de la figura \ref{fig:pre_svm}.
 
 ```python
 {"clf": [SGDClassifier(random_state = SEED,
@@ -299,16 +329,14 @@ Finalmente en modelos lineales, consideramos las máquinas de soporte vectorial 
  "clf__alpha": np.logspace(-6, 2, 40)}
 ```
 
-La técnica usada es SGD, de manera que minimizamos el error hinge junto con la regularización L2: $$L_{svm}(w) = \frac{1}{N} \max(0, 1 - y_i f(x_i))$$.
-
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=1.\textwidth]{img/SGDClassifier_acc_time.png}
+  \includegraphics[width=0.8\textwidth]{img/SGDClassifier_acc_time.png}
   \caption{acc-cv/tiempo según alpha en SGDClassifier.}
   \label{fig:pre_svm}
 \end{figure}
 
-Los resultados del preanálisis en \ref{fig:pre_svm} nos indican un máximo cerca de $10^{-1}$ y 1, por lo que restringimos al espacio logarítmico $[-5, 1]$:
+Los resultados del preanálisis nos indican un máximo cerca de $10^{-1}$ y 1, por lo que restringimos al espacio logarítmico $[-5, 1]$ (aportando cierta flexibilidad a la hora de escoger el espacio). También hemos considerado como hiperparámetro adicional el tipo de tasa de aprendizaje: `optimal` (tasa escogida por heurística), `adaptive` (decrementa cuando el error no decrementa) e `invscaling` (decrementa dividiendo por la raiz del número de iteraciones). De esta forma aportamos flexibilidad en el ajuste, intentando que al principio se acerque rápidamente a un óptimo y que después vaya disminuyendo la tasa de aprendizaje para asegurar una buena convergencia. La tasa de aprendizaje inicial, `eta0`, la fijamos a 0.1, un valor no demasiado pequeño para dar pie a ir disminuyendo progresivamente sin reducirse a valores despreciables.
 
 ```python
 {"clf": [SGDClassifier(random_state = SEED,
@@ -318,8 +346,6 @@ Los resultados del preanálisis en \ref{fig:pre_svm} nos indican un máximo cerc
  "clf__learning_rate": ['optimal', 'invscaling', 'adaptive'],
  "clf__alpha": np.logspace(-5, 1, 7)}
 ```
-
-También hemos considerado como hiperparámetro adicional el tipo de tasa de aprendizaje, fijando la inicial (`eta0`) como 0.1: `optimal` (tasa escogida por heurística), `adaptive` (inicial, y decrementa cuando el error no decrementa) y `invscaling` (inicial, y decrementa dividiendo por la raiz del nº de iteraciones).
 
 ## Random Forest (RF)
 
