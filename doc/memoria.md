@@ -1,6 +1,6 @@
 # Introducción
 
-En esta práctica perseguimos ajustar el mejor modelo dentro de una clase de modelos, para resolver un problema de clasificación binaria. Para ello seguiremos los siguientes pasos:
+En este proyecto perseguimos ajustar el mejor modelo dentro de una clase de modelos, para resolver un problema de clasificación binaria. Para ello seguiremos los siguientes pasos:
 
 1. Analizaremos la bases de datos y entenderemos el contexto del problema a resolver.
 2. Preprocesaremos los datos de forma adecuada para trabajar con ellos.
@@ -223,7 +223,7 @@ En la sección [Ajuste de modelos] veremos cómo se especifica en el código el 
 
 # Ajuste de modelos
 
-Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentro de cada una el procedimiento de ajuste y la justificación de los pasos seguidos. La métrica usada para decidir el mejor modelo será, de forma natural, el *accuracy* medio en los conjuntos de validación. Fijamos el valor de $K$ en 5 para la etapa de *cross-validation*, pues se trata de un valor no demasiado elevado que no dispara el tiempo de entrenamiento, pero lo suficiente como para conseguir unos resultados confiables.
+Pasamos ahora a describir las clases de modelos que se ajustan, detallando dentro de cada una el procedimiento de ajuste y la justificación de los pasos seguidos. La métrica usada para decidir el mejor modelo será, de forma natural, el *accuracy* medio en los conjuntos de validación. Fijamos el valor de $K$ en 5 para la etapa de *cross-validation*, pues se trata de un valor no demasiado elevado que no dispara el tiempo de entrenamiento, pero lo suficiente como para conseguir unos resultados fiables.
 
 ## Modelos lineales
 
@@ -349,17 +349,15 @@ Los resultados del preanálisis nos indican un máximo cerca de $10^{-1}$ y 1, p
 
 ## Random Forest (RF)
 
-En el caso de los árboles de decisión (Random Forest) queríamos bajar la alta varianza que tienen los árboles, consiguiendo también una mejoría del tiempo de entrenamiento.
-
-Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol.
-
-Consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth` (regulariación) e inicialmente tenemos el siguiente espacio:
+Consideramos primero Random Forest mediante el objeto `RandomForest`, fijando el nº de características de cada arbol a $\sqrt{n_{caract}}$ (usando la regla a ojo) y el criterio gini para decidir las divisiones del árbol. Entonces consideramos como hiperparámetros el nº de árboles `n_estimators` y la profundidad máxima de cada árbol `max_depth` (regularización), inicialmente teniendo el siguiente espacio:
 
 ```python
 {"clf": [RandomForestClassifier(random_state = SEED)],
  "clf__max_depth": [5, 10, 15, 20, 30, 40, 58],
  "clf__n_estimators": [100, 200, 300, 400, 500, 600]}
 ```
+
+La clase de funciones que estamos ajustando no es más que la agrupación (*ensemble*) de árboles de decisión que son las funciones que particionan el espacio por hiperplanos paralelos a los ejes. En este sentido partimos desde un sesgo nulo y muy alta varianza que intentamos bajar con el *bagging* y el uso de distintos árboles, por lo que realmente no hay una función de error que estemos reduciendo.
 
 \begin{figure}[h!]
   \centering
@@ -394,7 +392,7 @@ Hemos añadido el hiperparámetro `cc_alpha` que se usa para la poda de mínimo 
 
 ### AdaBoost {.unlisted .unnumbered}
 
-Hiperparámetros AdaBoost:
+Usamos AdaBoost con el objeto `AdaBoostClassifier`, fijando la tasa de aprendizaje por defecto a `1` y usando como clasificador *flojo* un árbol de decisión `DecisionTreeClassifier`. Los hiperparámetros que dejamos para buscar son: `max_depth` la profundidad máxima de los clasificadores, y `n_estimators` el nº de los clasificadores. Probamos con profundidades muy bajas y un tamaño alto de clasificadores:
 
 ```python
 {"clf": [AdaBoostClassifier(random_state = SEED,
@@ -402,6 +400,8 @@ Hiperparámetros AdaBoost:
  "clf__base_estimator__max_depth": [1, 2, 3, 4, 5],
  "clf__n_estimators": [100, 200, 300, 400, 500]}
 ```
+
+La base de AdaBoost es formar un buen clasificador entrenando muchos clasificadores *flojos* (*boosting*), por ejemplo arboles de decisión con una regla, repetídamente con muchas modificaciones de los datos (aplicando distintos pesos a los datos); de manera que la predicción de las etiquetas se hace con el voto mayoritario de todos los clasificadores. Además la función de error que intenta minimizar es la logística (no la de clasificación) por lo que se asemeja en ese sentido a `LogisticRegression`.
 
 \begin{figure}[h!]
   \centering
@@ -417,16 +417,15 @@ Hiperparámetros AdaBoost:
   \label{fig:pre_adaboost2}
 \end{figure}
 
-
-Resultados preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2}
-
-Espacio final:
+Los resultados del preanálisis \ref{fig:pre_adaboost1} y \ref{fig:pre_adaboost2} nos dejan claro que los mejores resultados se benefician de árboles lo más simple posibles (una regla) y dentro de este, el mejor valor se alcanza con 200 árboles. Por tanto dejamos dejamos 1 como profunidad máxima y variamos el nº de árboles entorno a 200:
 
 ```python
 {"clf": [AdaBoostClassifier(random_state = SEED)],
  "clf__n_estimators": [175, 200, 225],
  "clf__learning_rate": [0.5, 1.0]}
 ```
+
+También probamos añadiendo `learning_rate` como hiperparámetro para probar con otra tasa más pequeña.
 
 ### Gradient Boosting {.unlisted .unnumbered}
 
@@ -518,6 +517,8 @@ Algoritmo de los k vecinos más cercanos mediante el objeto `KNeighborsClassifie
  "clf__n_neighbors": [1, 3, 5, 10, 20, 25, 30, 40, 50, 100, 200]}
 ```
 
+K-nn considera los $k$ vecinos más cercanos al punto que se quiera etiquetar y se obtiene la etiqueta en función de las etiquetas de estos vecinos (moda, por ejemplo), por lo que las funciones que ajustamos son las que particionan el espacio de cualquier manera.
+
 \begin{figure}[h!]
   \centering
   \includegraphics[width=1.\textwidth]{img/KNN_acc_time.png}
@@ -533,11 +534,11 @@ Los resultados preanálisis \ref{fig:pre_knn} nos confirman la regla experimenta
  "clf__weights": ['uniform', 'distance']}
 ```
 
-Además añadimos para dar más variabilidad en la búsqueda, el hiperparámetro `weights` que permite cambiar el peso de los vecinos: `uniform` todos importan igual, `distance` los vecinos importan en función de la distancia.
+Además añadimos para dar más variabilidad en la búsqueda, el hiperparámetro `weights` que permite cambiar el peso de los $k$-vecinos encontrados: `uniform` todos importan por igual, `distance` los vecinos importan inversamente proporcional a la distancia.
 
 ## Redes de funciones de Base Radial (RBF)
 
-El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO. Hemos considerado el algoritmo K-medias (`KMeans`) para encontrar los $k$ centroides, la sugerencia de fijar $r = \dfrac{R}{k^{1/d}}$ y finalmente el algoritmo lineal considerado con el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`) ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal.
+El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo el algoritmo \ref{alg:rbf} en REFERENCIA_LIBRO. Hemos considerado el algoritmo K-medias (`KMeans`) para encontrar los $k$ centroides, la sugerencia de fijar $r = \dfrac{R}{k^{1/d}}$ y finalmente el algoritmo lineal considerado con el espacio transformado $Z$ ha sido Regresión Lineal + L2 (`RidgeClassifier`) ya que usamos el método de la psuedoinversa que es más sencillo y rápido, aunque podría haberse usado cualquier otro modelo lineal clasificador.
 
 \begin{algorithm}[H]
 \SetAlgoLined
@@ -550,7 +551,7 @@ El clasificador está implementado en la clase `RBFNetworkClassifier` siguiendo 
 \label{alg:rbf}
 \end{algorithm}
 
-Los hiperparámetros a considerar son tanto el nº de centroides `k` como el parámetro de regularización en el modelo lineal `alpha`, cuya configuración de búsqueda inicial es:
+Los hiperparámetros a considerar son tanto el nº de centroides `k` como el parámetro de regularización en el modelo lineal `alpha` (muy necesario cuando `k` aumenta), cuya configuración de búsqueda inicial es:
 
 ```python
 {"clf": [RBFNetworkClassifier(random_state = SEED)],
@@ -558,17 +559,19 @@ Los hiperparámetros a considerar son tanto el nº de centroides `k` como el par
  "clf__alpha": [0.0, 1e-10, 1e-5, 1e-3, 1e-1, 1.0, 10.0]}
 ```
 
+Una implementacion más específica se puede encontrar en [Anexo: Funcionamiento del código].
+
 \begin{figure}[h!]
   \centering
   \includegraphics[width=1.\textwidth]{img/RBF_acc_time.png}
-  \caption{acc-cv/tiempo según `k` y `alpha` en RBF.}
+  \caption{acc-cv/tiempo según k y alpha en RBF.}
   \label{fig:pre_rbf1}
 \end{figure}
 
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.7\textwidth]{img/RBF_heatmap.png}
-  \caption{Mapa de calor según `k` y `alpha` en RBF.}
+  \caption{Mapa de calor según k y alpha en RBF.}
   \label{fig:pre_rbf2}
 \end{figure}
 
@@ -682,9 +685,18 @@ En general, exceptuando KNN y RandomForest que sabemos que tienden mucho al sobr
 
 Esto nos indica que los modelos consiguen un buen ajuste con poco overfitting, sacando casi todo el partido de los datos que tenemos. Observamos también que las curvas de validación se estabilizan, indicándonos que probablamente con muchos más datos no vamos a obtener ventajas notables por lo que si queremos aumentar mucho más la métrica deberemos considerar, por ejemplo, recolectar más características.
 
+- Ventajas/inconvenientes modelos
+
 # Conclusiones y estimación del error
 
-- Modelos lineales: llegan a casi lo mismo que otros muchos más potentes.
+El mejor modelo que nos indica la métrica *accuracy* (y con el que nos quedamos como modelo final) es `RandomForest` con una tasa de acierto del 66.71%. Sin embargo, merece la pena comentar que `GradientBoostingClassifier` se acerca mucho con un acierto del 66.44% e incluso bajo la métrica *AUC* es mejor (72.84% frente al 72.60% de RF).
+
+De hecho todos los modelos han obtenido resultados en $acc_{test}$ muy parecidos, con diferencias de no más de 3 unidades y con valores por encima del 50% base (aleatorio) por al menos más de 10 puntos, por lo que en general los modelos han obtenido unas soluciones con un rendimiento muy parecido y que podemos decir que son "buenas", en el sentido que son mejores significativamente que usar el azar.
+
+Notemos además que el mejor modelo lineal `LogisticRegression` ha conseguido un rendimiento muy bueno, más que otros modelos mucho más complejos como `KNN` o `MLP`. Esto último nos indica que a pesar de la "simplicidad" de un modelo lineal se puede obtener resultados iguales o mejores, que dependerá del problema que estemos tratando pero sin lugar a dudas no hay que descartar intentar ajustar un modelo lineal ya que puede darnos un buen resultado sin tener que usar otros algoritmos mucho más complejos.
+
+Analizando también la metrica secundaria, vemos que el orden de los valores de $AUC_{test}$ van muy ligados con $acc_{test}$ (esperable debido al casi balanceo de las clases), dándonos mayor fiabilidad en los resultados y también nos permiten dar más información sobre la bondad de los modelos, permitiendo otro punto de vista para compararlos.
+
 - Repaso por encima de todos.
 
 [@fernandes2015]
